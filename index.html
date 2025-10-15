@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rally - Menú de Tramos</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #666;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th {
+            background-color: #2c3e50;
+            color: white;
+            padding: 12px;
+            text-align: center;
+            font-weight: bold;
+            border: 1px solid #34495e;
+        }
+
+        td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+            background-color: #fff;
+        }
+
+        tr:hover td {
+            background-color: #f5f5f5;
+        }
+
+        .btn-clases {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .btn-clases:hover {
+            background-color: #2980b9;
+        }
+
+        .error {
+            background-color: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .last-update {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MENÚ DE TRAMOS - RALLY</h1>
+        <div id="content" class="loading">Cargando datos...</div>
+        <div class="last-update" id="lastUpdate"></div>
+    </div>
+
+    <script>
+        const TRAMOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=0&single=true&output=csv';
+        
+        let tramosData = [];
+
+        function parseCSV(csv) {
+            const lines = csv.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+                const obj = {};
+                headers.forEach((header, index) => {
+                    obj[header] = values[index] || '';
+                });
+                data.push(obj);
+            }
+            
+            return data;
+        }
+
+        async function loadData() {
+            try {
+                const response = await fetch(TRAMOS_URL);
+                const text = await response.text();
+                tramosData = parseCSV(text);
+                
+                renderMenu();
+                updateLastUpdate();
+            } catch (error) {
+                document.getElementById('content').innerHTML = 
+                    '<div class="error">Error al cargar los datos. Por favor, verifica que la hoja de cálculo esté publicada correctamente.</div>';
+                console.error('Error:', error);
+            }
+        }
+
+        function renderMenu() {
+            if (tramosData.length === 0) {
+                document.getElementById('content').innerHTML = 
+                    '<div class="error">No se encontraron datos de tramos.</div>';
+                return;
+            }
+
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>PE</th>
+                            <th>DESDE - HASTA</th>
+                            <th>KMS</th>
+                            <th>HORA</th>
+                            <th>CLASES</th>
+                            <th>GANADOR</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            tramosData.forEach(tramo => {
+                const pe = tramo.PE || '';
+                const desde = tramo.Desde || '';
+                const hasta = tramo.Hasta || '';
+                const desdeHasta = desde && hasta ? `${desde} - ${hasta}` : '';
+                const kms = tramo.KMS || '';
+                const hora = tramo.HORA || '';
+                const ganador = tramo.Ganador || tramo.GANADOR || '';
+
+                html += `
+                    <tr>
+                        <td><strong>${pe}</strong></td>
+                        <td>${desdeHasta}</td>
+                        <td>${kms}</td>
+                        <td>${hora}</td>
+                        <td>
+                            <button class="btn-clases" onclick="verClases('${pe}')">
+                                VER RESULTADOS
+                            </button>
+                        </td>
+                        <td>${ganador}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function verClases(pe) {
+            window.location.href = `tramo.html?pe=${pe}`;
+        }
+
+        function updateLastUpdate() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('es-AR');
+            document.getElementById('lastUpdate').textContent = 
+                `Última actualización: ${timeStr}`;
+        }
+
+        // Cargar datos al inicio
+        loadData();
+
+        // Actualizar cada 30 segundos
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html>

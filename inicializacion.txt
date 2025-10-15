@@ -1,0 +1,26 @@
+PE | Desde-Hasta | KMS | HORA | Ganador
+1  | Capilla-Tanti | 15.2 | 09:00 | Juan Pérez
+2  | Tanti-Villa Carlos Paz | 22.5 | 10:30 | María González
+...
+```
+
+### **Hoja 2: "Resultados"** (Datos de pilotos)
+```
+Nombre | Categoria | SS1 | SS2 | SS3 | SS4 | Total
+Juan Pérez | RC2 | 00:12:30 | 00:15:45 | 00:13:20 | 00:14:10 | 00:55:45
+María González | RC3 | 00:13:10 | 00:16:20 | 00:14:05 | 00:15:30 | 00:59:05
+...
+```
+
+## Estructura del Proyecto
+```
+proyecto/
+├── index.html              # Menú principal (lista de tramos)
+├── tramo.html             # Resultados de un tramo específico
+├── js/
+│   ├── config.js          # API Key y Sheet ID
+│   ├── sheets-api.js      # Funciones para obtener datos
+│   ├── menu.js            # Lógica del menú
+│   └── tramo.js           # Lógica de resultados por tramo
+└── css/
+    └── styles.css         # Estilos (similar a tiemposrally)

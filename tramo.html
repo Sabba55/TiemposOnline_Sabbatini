@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rally - Resultados del Tramo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .btn-back {
+            display: inline-block;
+            background-color: #95a5a6;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .btn-back:hover {
+            background-color: #7f8c8d;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .tables-container {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .table-column {
+            flex: 1;
+        }
+
+        .section-title {
+            background-color: #34495e;
+            color: white;
+            padding: 12px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .category-section {
+            margin-bottom: 30px;
+        }
+
+        .category-title {
+            background-color: #e74c3c;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+        }
+
+        th {
+            background-color: #2c3e50;
+            color: white;
+            padding: 8px;
+            text-align: center;
+            font-size: 13px;
+            border: 1px solid #34495e;
+        }
+
+        td {
+            padding: 6px;
+            text-align: center;
+            border: 1px solid #ddd;
+            background-color: #fff;
+            font-size: 13px;
+        }
+
+        tr:hover td {
+            background-color: #f5f5f5;
+        }
+
+        .pos-1 td:first-child {
+            background-color: #f39c12;
+            color: white;
+            font-weight: bold;
+        }
+
+        .error {
+            background-color: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .last-update {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="btn-back">← VOLVER AL MENÚ</a>
+        <h1 id="title">RESULTADOS DEL TRAMO</h1>
+        <div id="content" class="loading">Cargando datos...</div>
+        <div class="last-update" id="lastUpdate"></div>
+    </div>
+
+    <script>
+        const PILOTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1122371230&single=true&output=csv';
+        
+        let pilotosData = [];
+        let peNumber = '';
+
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        function parseCSV(csv) {
+            const lines = csv.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+                const obj = {};
+                headers.forEach((header, index) => {
+                    obj[header] = values[index] || '';
+                });
+                data.push(obj);
+            }
+            
+            return data;
+        }
+
+        function timeToSeconds(timeStr) {
+            if (!timeStr || timeStr === '') return 999999;
+            
+            const parts = timeStr.split(':');
+            if (parts.length === 2) {
+                return parseInt(parts[0]) * 60 + parseFloat(parts[1]);
+            } else if (parts.length === 3) {
+                return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2]);
+            }
+            return 999999;
+        }
+
+        function secondsToTime(seconds) {
+            if (seconds >= 999999) return '-';
+            
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = (seconds % 60).toFixed(2);
+            
+            if (hours > 0) {
+                return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(5, '0')}`;
+            }
+            return `${minutes}:${String(secs).padStart(5, '0')}`;
+        }
+
+        function formatDifference(diffSeconds) {
+            if (diffSeconds === 0) return '-';
+            return '+' + secondsToTime(diffSeconds);
+        }
+
+        async function loadData() {
+            try {
+                const response = await fetch(PILOTOS_URL);
+                const text = await response.text();
+                pilotosData = parseCSV(text);
+                
+                renderResults();
+                updateLastUpdate();
+            } catch (error) {
+                document.getElementById('content').innerHTML = 
+                    '<div class="error">Error al cargar los datos.</div>';
+                console.error('Error:', error);
+            }
+        }
+
+        function calcularTotalAcumulado(piloto, hastaPE) {
+            let totalSegundos = 0;
+            for (let i = 1; i <= hastaPE; i++) {
+                const ssColumn = `SS${i}`;
+                const tiempo = piloto[ssColumn];
+                if (tiempo) {
+                    totalSegundos += timeToSeconds(tiempo);
+                }
+            }
+            return totalSegundos;
+        }
+
+        function renderResults() {
+            peNumber = getQueryParam('pe');
+            const peNumero = parseInt(peNumber);
+            document.getElementById('title').textContent = `RESULTADOS - PE ${peNumber}`;
+
+            if (pilotosData.length === 0) {
+                document.getElementById('content').innerHTML = 
+                    '<div class="error">No se encontraron datos de pilotos.</div>';
+                return;
+            }
+
+            const ssColumn = `SS${peNumber}`;
+            
+            // Obtener categorías únicas y ordenarlas alfabéticamente
+            const categorias = [...new Set(pilotosData.map(p => p.Categoria || p.CATEGORIA))].filter(c => c).sort();
+
+            let htmlPE = '<div class="section-title">CLASIFICACIÓN P.E.</div>';
+            let htmlGeneral = '<div class="section-title">CLASIFICACIÓN GENERAL</div>';
+
+            // Tabla PE - Por categoría
+            categorias.forEach(categoria => {
+                const pilotosCategoria = pilotosData
+                    .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[ssColumn])
+                    .map(p => {
+                        const totalAcumulado = calcularTotalAcumulado(p, peNumero);
+                        return {
+                            nombre: p.Nombre || p.NOMBRE || '',
+                            categoria: categoria,
+                            tiempo: p[ssColumn],
+                            tiempoSegundos: timeToSeconds(p[ssColumn]),
+                            totalSegundos: totalAcumulado
+                        };
+                    })
+                    .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
+
+                if (pilotosCategoria.length === 0) return;
+
+                const mejorTiempo = pilotosCategoria[0].tiempoSegundos;
+
+                htmlPE += `
+                    <div class="category-section">
+                        <div class="category-title">${categoria}</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>POS</th>
+                                    <th>PILOTO</th>
+                                    <th>CLASE</th>
+                                    <th>TIEMPO</th>
+                                    <th>DIFERENCIA</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                pilotosCategoria.forEach((piloto, index) => {
+                    const diferencia = piloto.tiempoSegundos - mejorTiempo;
+                    const rowClass = index === 0 ? 'pos-1' : '';
+
+                    htmlPE += `
+                        <tr class="${rowClass}">
+                            <td><strong>${index + 1}</strong></td>
+                            <td>${piloto.nombre}</td>
+                            <td>${piloto.categoria}</td>
+                            <td>${piloto.tiempo}</td>
+                            <td>${formatDifference(diferencia)}</td>
+                        </tr>
+                    `;
+                });
+
+                htmlPE += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            });
+
+            // Tabla General - Todos juntos (ordenados por total acumulado)
+            const pilotosGeneral = pilotosData
+                .filter(p => p[ssColumn]) // Solo pilotos que corrieron este tramo
+                .map(p => {
+                    const totalAcumulado = calcularTotalAcumulado(p, peNumero);
+                    return {
+                        nombre: p.Nombre || p.NOMBRE || '',
+                        totalSegundos: totalAcumulado
+                    };
+                })
+                .filter(p => p.totalSegundos < 999999) // Filtrar pilotos sin tiempos válidos
+                .sort((a, b) => a.totalSegundos - b.totalSegundos);
+
+            if (pilotosGeneral.length > 0) {
+                const mejorTotal = pilotosGeneral[0].totalSegundos;
+
+                htmlGeneral += `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>POS</th>
+                                <th>PILOTO</th>
+                                <th>TIEMPO TOTAL</th>
+                                <th>DIF. 1°</th>
+                                <th>DIF. ANT.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                pilotosGeneral.forEach((piloto, index) => {
+                    const dif1 = piloto.totalSegundos - mejorTotal;
+                    const difAnt = index > 0 ? piloto.totalSegundos - pilotosGeneral[index - 1].totalSegundos : 0;
+                    const rowClass = index === 0 ? 'pos-1' : '';
+                    const tiempoFormateado = secondsToTime(piloto.totalSegundos);
+
+                    htmlGeneral += `
+                        <tr class="${rowClass}">
+                            <td><strong>${index + 1}</strong></td>
+                            <td>${piloto.nombre}</td>
+                            <td>${tiempoFormateado}</td>
+                            <td>${formatDifference(dif1)}</td>
+                            <td>${formatDifference(difAnt)}</td>
+                        </tr>
+                    `;
+                });
+
+                htmlGeneral += `
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                htmlGeneral += '<div class="no-data">No hay datos de clasificación general disponibles.</div>';
+            }
+
+            const html = `
+                <div class="tables-container">
+                    <div class="table-column">${htmlPE}</div>
+                    <div class="table-column">${htmlGeneral}</div>
+                </div>
+            `;
+
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function updateLastUpdate() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('es-AR');
+            document.getElementById('lastUpdate').textContent = 
+                `Última actualización: ${timeStr}`;
+        }
+
+        // Cargar datos al inicio
+        loadData();
+
+        // Actualizar cada 30 segundos
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html>
