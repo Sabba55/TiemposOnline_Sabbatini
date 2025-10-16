@@ -175,7 +175,14 @@
                 headers.forEach((header, index) => {
                     obj[header] = values[index] || '';
                 });
-                data.push(obj);
+                
+                // Validar que tenga al menos Nombre y Categoría para incluir el registro
+                const nombre = obj.Nombre || obj.NOMBRE || '';
+                const categoria = obj.Categoria || obj.CATEGORIA || '';
+                
+                if (nombre && categoria) {
+                    data.push(obj);
+                }
             }
             
             return data;
@@ -228,14 +235,22 @@
 
         function calcularTotalAcumulado(piloto, hastaPE) {
             let totalSegundos = 0;
+            let tieneTiempos = false;
+            
             for (let i = 1; i <= hastaPE; i++) {
                 const ssColumn = `SS${i}`;
                 const tiempo = piloto[ssColumn];
-                if (tiempo) {
-                    totalSegundos += timeToSeconds(tiempo);
+                if (tiempo && tiempo !== '') {
+                    const segundos = timeToSeconds(tiempo);
+                    if (segundos < 999999) {
+                        totalSegundos += segundos;
+                        tieneTiempos = true;
+                    }
                 }
             }
-            return totalSegundos;
+            
+            // Si no tiene ningún tiempo válido, devolver un valor muy alto
+            return tieneTiempos ? totalSegundos : 999999;
         }
 
         function renderResults() {
@@ -315,47 +330,64 @@
                 `;
             });
 
-            // Tabla General - Todos juntos (ordenados por total acumulado)
-            const pilotosGeneral = pilotosData
-                .filter(p => p[ssColumn]) // Solo pilotos que corrieron este tramo
-                .map(p => {
-                    const totalAcumulado = calcularTotalAcumulado(p, peNumero);
-                    return {
-                        nombre: p.Nombre || p.NOMBRE || '',
-                        totalSegundos: totalAcumulado
-                    };
-                })
-                .filter(p => p.totalSegundos < 999999) // Filtrar pilotos sin tiempos válidos
-                .sort((a, b) => a.totalSegundos - b.totalSegundos);
+            // Tabla General - Por categoría
+            categorias.forEach(categoria => {
+                const pilotosGeneralCategoria = pilotosData
+                    .filter(p => (p.Categoria || p.CATEGORIA) === categoria)
+                    .map(p => {
+                        const totalAcumulado = calcularTotalAcumulado(p, peNumero);
+                        const penalizacion = timeToSeconds(p.PENALIZACION || p.Penalizacion || '');
+                        const penalizacionSegundos = penalizacion < 999999 ? penalizacion : 0;
+                        const totalConPenalizacion = totalAcumulado + penalizacionSegundos;
+                        
+                        return {
+                            nombre: p.Nombre || p.NOMBRE || '',
+                            categoria: categoria,
+                            totalSegundos: totalAcumulado,
+                            penalizacionSegundos: penalizacionSegundos,
+                            totalConPenalizacion: totalConPenalizacion
+                        };
+                    })
+                    .filter(p => p.totalSegundos < 999999)
+                    .sort((a, b) => a.totalConPenalizacion - b.totalConPenalizacion);
 
-            if (pilotosGeneral.length > 0) {
-                const mejorTotal = pilotosGeneral[0].totalSegundos;
+                if (pilotosGeneralCategoria.length === 0) return;
+
+                const mejorTotal = pilotosGeneralCategoria[0].totalConPenalizacion;
 
                 htmlGeneral += `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>POS</th>
-                                <th>PILOTO</th>
-                                <th>TIEMPO TOTAL</th>
-                                <th>DIF. 1°</th>
-                                <th>DIF. ANT.</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <div class="category-section">
+                        <div class="category-title">${categoria}</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>POS</th>
+                                    <th>PILOTO</th>
+                                    <th>TIEMPO</th>
+                                    <th>PENALIZ</th>
+                                    <th>TIEMPO TOTAL</th>
+                                    <th>DIF. 1°</th>
+                                    <th>DIF. ANT.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
                 `;
 
-                pilotosGeneral.forEach((piloto, index) => {
-                    const dif1 = piloto.totalSegundos - mejorTotal;
-                    const difAnt = index > 0 ? piloto.totalSegundos - pilotosGeneral[index - 1].totalSegundos : 0;
+                pilotosGeneralCategoria.forEach((piloto, index) => {
+                    const dif1 = piloto.totalConPenalizacion - mejorTotal;
+                    const difAnt = index > 0 ? piloto.totalConPenalizacion - pilotosGeneralCategoria[index - 1].totalConPenalizacion : 0;
                     const rowClass = index === 0 ? 'pos-1' : '';
                     const tiempoFormateado = secondsToTime(piloto.totalSegundos);
+                    const penalizFormateada = piloto.penalizacionSegundos > 0 ? secondsToTime(piloto.penalizacionSegundos) : '-';
+                    const totalFormateado = secondsToTime(piloto.totalConPenalizacion);
 
                     htmlGeneral += `
                         <tr class="${rowClass}">
                             <td><strong>${index + 1}</strong></td>
                             <td>${piloto.nombre}</td>
                             <td>${tiempoFormateado}</td>
+                            <td>${penalizFormateada}</td>
+                            <td>${totalFormateado}</td>
                             <td>${formatDifference(dif1)}</td>
                             <td>${formatDifference(difAnt)}</td>
                         </tr>
@@ -363,12 +395,11 @@
                 });
 
                 htmlGeneral += `
-                        </tbody>
-                    </table>
+                            </tbody>
+                        </table>
+                    </div>
                 `;
-            } else {
-                htmlGeneral += '<div class="no-data">No hay datos de clasificación general disponibles.</div>';
-            }
+            });
 
             const html = `
                 <div class="tables-container">
