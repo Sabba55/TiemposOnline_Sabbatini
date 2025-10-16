@@ -20,6 +20,16 @@
             padding-top: 100px;
         }
 
+        .container {
+            max-width: 1200px;
+            min-width: 1200px;
+            margin: 30px auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
         .header-banner {
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             padding: 20px;
@@ -86,7 +96,7 @@
 
         .loading {
             text-align: center;
-            padding: 60px 20px;
+            padding: 10px 20px;
             font-size: 18px;
             color: #666;
         }
@@ -104,6 +114,7 @@
 
         table {
             width: 100%;
+            min-width: 1000px;
             border-collapse: collapse;
             margin-top: 20px;
             border: 2px solid #1e40af;
@@ -196,7 +207,6 @@
             text-align: center;
             color: #64748b;
             font-size: 13px;
-            margin-top: 25px;
             padding: 15px;
             background: #f1f5f9;
             border-radius: 8px;
@@ -222,24 +232,6 @@
         @media (max-width: 768px) {
             body {
                 padding-top: 90px;
-            }
-
-            .header-title {
-                font-size: 20px;
-            }
-            
-            .logo-container {
-                width: 50px;
-                height: 50px;
-            }
-
-            .container {
-                padding: 20px;
-                margin: 20px 10px;
-            }
-
-            table {
-                font-size: 12px;
             }
 
             th, td {
