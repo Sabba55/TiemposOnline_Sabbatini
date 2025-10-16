@@ -12,46 +12,71 @@
         }
 
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            min-height: 100vh;
             padding: 20px;
         }
 
         .container {
             max-width: 1400px;
-            margin: 0 auto;
+            margin: 30px auto;
             background-color: white;
-            padding: 20px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-back:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(100, 116, 139, 0.5);
+            background: linear-gradient(135deg, #475569 0%, #334155 100%);
         }
 
         h1 {
             text-align: center;
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 28px;
-        }
-
-        .btn-back {
-            display: inline-block;
-            background-color: #95a5a6;
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            font-weight: bold;
-        }
-
-        .btn-back:hover {
-            background-color: #7f8c8d;
+            color: #1e293b;
+            margin-bottom: 30px;
+            font-size: 32px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .loading {
             text-align: center;
-            padding: 40px;
+            padding: 10px 20px;
             font-size: 18px;
             color: #666;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
         }
 
         .tables-container {
@@ -65,91 +90,166 @@
         }
 
         .section-title {
-            background-color: #34495e;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
             color: white;
-            padding: 12px;
+            padding: 16px;
             text-align: center;
-            font-weight: bold;
-            font-size: 18px;
-            margin-bottom: 20px;
+            font-weight: 700;
+            font-size: 20px;
+            margin-bottom: 25px;
+            border-radius: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
         }
 
         .category-section {
-            margin-bottom: 30px;
+            margin-bottom: 35px;
         }
 
         .category-title {
-            background-color: #e74c3c;
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
             color: white;
-            padding: 10px;
+            padding: 12px;
             text-align: center;
-            font-weight: bold;
+            font-weight: 700;
             font-size: 16px;
-            margin-bottom: 10px;
+            border-radius: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 5px;
+            border: 2px solid #1e40af;
+            border-radius: 12px;
+            overflow: hidden;
         }
 
         th {
-            background-color: #2c3e50;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
             color: white;
-            padding: 8px;
+            padding: 12px 8px;
             text-align: center;
-            font-size: 13px;
-            border: 1px solid #34495e;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-right: 2px solid #1e40af;
+        }
+
+        th:last-child {
+            border-right: none;
         }
 
         td {
-            padding: 6px;
+            padding: 10px 8px;
             text-align: center;
-            border: 1px solid #ddd;
+            border-bottom: 2px solid #e5e7eb;
+            border-right: 2px solid #e5e7eb;
             background-color: #fff;
             font-size: 13px;
         }
 
-        tr:hover td {
-            background-color: #f5f5f5;
+        td:last-child {
+            border-right: none;
         }
 
-        .pos-1 td:first-child {
-            background-color: #f39c12;
-            color: white;
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: #eff6ff;
+        }
+
+        .pos-1 td {
+            background-color: #fff !important;
+            font-weight: 400;
             font-weight: bold;
         }
 
-        .error {
-            background-color: #e74c3c;
+        .pos-1 td:first-child {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
             color: white;
-            padding: 15px;
-            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .error {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
             text-align: center;
             margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
         }
 
         .last-update {
             text-align: center;
-            color: #7f8c8d;
-            font-size: 12px;
-            margin-top: 20px;
+            color: #64748b;
+            font-size: 13px;
+            margin-top: 25px;
+            padding: 15px;
+            background: #f1f5f9;
+            border-radius: 8px;
         }
 
         .no-data {
             text-align: center;
             padding: 20px;
-            color: #7f8c8d;
+            color: #64748b;
             font-style: italic;
+        }
+
+        @media (max-width: 1024px) {
+            .tables-container {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 20px 10px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            table {
+                font-size: 11px;
+            }
+
+            th, td {
+                padding: 8px 4px;
+            }
+
+            .section-title {
+                font-size: 16px;
+                padding: 12px;
+            }
+
+            .category-title {
+                font-size: 14px;
+                padding: 10px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <a href="index.html" class="btn-back">← VOLVER AL MENÚ</a>
+        <a href="index.html" class="btn-back">
+            <span>←</span>
+            <span>Volver al Menú</span>
+        </a>
         <h1 id="title">RESULTADOS DEL TRAMO</h1>
-        <div id="content" class="loading">Cargando datos...</div>
+        <div id="content" class="loading">Cargando datos</div>
         <div class="last-update" id="lastUpdate"></div>
     </div>
 
@@ -176,7 +276,6 @@
                     obj[header] = values[index] || '';
                 });
                 
-                // Validar que tenga al menos Nombre y Categoría para incluir el registro
                 const nombre = obj.Nombre || obj.NOMBRE || '';
                 const categoria = obj.Categoria || obj.CATEGORIA || '';
                 
@@ -228,7 +327,7 @@
                 updateLastUpdate();
             } catch (error) {
                 document.getElementById('content').innerHTML = 
-                    '<div class="error">Error al cargar los datos.</div>';
+                    '<div class="error">❌ Error al cargar los datos.</div>';
                 console.error('Error:', error);
             }
         }
@@ -249,8 +348,12 @@
                 }
             }
             
-            // Si no tiene ningún tiempo válido, devolver un valor muy alto
             return tieneTiempos ? totalSegundos : 999999;
+        }
+
+        function obtenerPenalizacion(piloto) {
+            const penalizacion = timeToSeconds(piloto.PENALIZACION || piloto.Penalizacion || '');
+            return penalizacion < 999999 ? penalizacion : 0;
         }
 
         function renderResults() {
@@ -260,19 +363,17 @@
 
             if (pilotosData.length === 0) {
                 document.getElementById('content').innerHTML = 
-                    '<div class="error">No se encontraron datos de pilotos.</div>';
+                    '<div class="error">❌ No se encontraron datos de pilotos.</div>';
                 return;
             }
 
             const ssColumn = `SS${peNumber}`;
             
-            // Obtener categorías únicas y ordenarlas alfabéticamente
             const categorias = [...new Set(pilotosData.map(p => p.Categoria || p.CATEGORIA))].filter(c => c).sort();
 
-            let htmlPE = '<div class="section-title">CLASIFICACIÓN P.E.</div>';
-            let htmlGeneral = '<div class="section-title">CLASIFICACIÓN GENERAL</div>';
+            let htmlPE = '<div class="section-title">Clasificación P.E.</div>';
+            let htmlGeneral = '<div class="section-title">Clasificación General</div>';
 
-            // Tabla PE - Por categoría
             categorias.forEach(categoria => {
                 const pilotosCategoria = pilotosData
                     .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[ssColumn])
@@ -298,11 +399,11 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>POS</th>
-                                    <th>PILOTO</th>
-                                    <th>CLASE</th>
-                                    <th>TIEMPO</th>
-                                    <th>DIFERENCIA</th>
+                                    <th>Pos</th>
+                                    <th>Piloto</th>
+                                    <th>Clase</th>
+                                    <th>Tiempo</th>
+                                    <th>Diferencia</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -330,7 +431,6 @@
                 `;
             });
 
-            // Tabla General - Por categoría
             categorias.forEach(categoria => {
                 const pilotosGeneralCategoria = pilotosData
                     .filter(p => (p.Categoria || p.CATEGORIA) === categoria)
@@ -361,13 +461,13 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>POS</th>
-                                    <th>PILOTO</th>
-                                    <th>TIEMPO</th>
-                                    <th>PENALIZ</th>
-                                    <th>TIEMPO TOTAL</th>
-                                    <th>DIF. 1°</th>
-                                    <th>DIF. ANT.</th>
+                                    <th>Pos</th>
+                                    <th>Piloto</th>
+                                    <th>Tiempo</th>
+                                    <th>Penaliz</th>
+                                    <th>T. Total</th>
+                                    <th>Dif. 1°</th>
+                                    <th>Dif. Ant.</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -415,13 +515,10 @@
             const now = new Date();
             const timeStr = now.toLocaleTimeString('es-AR');
             document.getElementById('lastUpdate').textContent = 
-                `Última actualización: ${timeStr}`;
+                `🔄 Última actualización: ${timeStr}`;
         }
 
-        // Cargar datos al inicio
         loadData();
-
-        // Actualizar cada 30 segundos
         setInterval(loadData, 30000);
     </script>
 </body>
