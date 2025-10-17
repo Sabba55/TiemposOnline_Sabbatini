@@ -14,6 +14,9 @@ body {
 }
 
 .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     max-width: 1200px;
     min-width: 1200px;
     margin: 30px auto;
@@ -21,6 +24,12 @@ body {
     border-radius: 20px;
     padding: 30px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+.buttonContainer {
+    display: flex;
+    width: 40%;
+    gap: 1rem;
 }
 
 .header-banner {
