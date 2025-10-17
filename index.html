@@ -229,6 +229,13 @@
             color: #1e40af;
         }
 
+        .ganador-tiempo {
+            font-size: 11px;
+            color: #64748b;
+            display: block;
+            margin-top: 2px;
+        }
+
         @media (max-width: 768px) {
             body {
                 padding-top: 90px;
@@ -265,8 +272,10 @@
 
     <script>
         const TRAMOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=0&single=true&output=csv';
+        const PILOTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1122371230&single=true&output=csv';
         
         let tramosData = [];
+        let pilotosData = [];
 
         function parseCSV(csv) {
             const lines = csv.trim().split('\n');
@@ -285,11 +294,52 @@
             return data;
         }
 
+        function timeToSeconds(timeStr) {
+            if (!timeStr || timeStr === '') return 999999;
+            
+            const parts = timeStr.split(':');
+            if (parts.length === 2) {
+                return parseInt(parts[0]) * 60 + parseFloat(parts[1]);
+            } else if (parts.length === 3) {
+                return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2]);
+            }
+            return 999999;
+        }
+
+        function obtenerGanadorPE(peNumber) {
+            const ssColumn = `SS${peNumber}`;
+            let mejorPiloto = null;
+            let mejorTiempo = 999999;
+
+            pilotosData.forEach(piloto => {
+                const tiempo = piloto[ssColumn];
+                if (tiempo && tiempo !== '') {
+                    const segundos = timeToSeconds(tiempo);
+                    if (segundos < mejorTiempo) {
+                        mejorTiempo = segundos;
+                        mejorPiloto = {
+                            nombre: piloto.Nombre || piloto.NOMBRE || '',
+                            tiempo: tiempo
+                        };
+                    }
+                }
+            });
+
+            return mejorPiloto;
+        }
+
         async function loadData() {
             try {
-                const response = await fetch(TRAMOS_URL);
-                const text = await response.text();
-                tramosData = parseCSV(text);
+                const [tramosResponse, pilotosResponse] = await Promise.all([
+                    fetch(TRAMOS_URL),
+                    fetch(PILOTOS_URL)
+                ]);
+                
+                const tramosText = await tramosResponse.text();
+                const pilotosText = await pilotosResponse.text();
+                
+                tramosData = parseCSV(tramosText);
+                pilotosData = parseCSV(pilotosText);
                 
                 renderMenu();
                 updateLastUpdate();
@@ -329,7 +379,16 @@
                 const desdeHasta = desde && hasta ? `${desde} - ${hasta}` : '';
                 const kms = tramo.KMS || '';
                 const hora = tramo.HORA || '';
-                const ganador = tramo.Ganador || tramo.GANADOR || '';
+
+                const ganador = obtenerGanadorPE(pe);
+                let ganadorHTML = '-';
+                
+                if (ganador) {
+                    ganadorHTML = `
+                        <div>${ganador.nombre}</div>
+                        <span class="ganador-tiempo">${ganador.tiempo}</span>
+                    `;
+                }
 
                 html += `
                     <tr>
@@ -342,7 +401,7 @@
                                 Ver Resultados
                             </button>
                         </td>
-                        <td class="ganador-cell">${ganador}</td>
+                        <td class="ganador-cell">${ganadorHTML}</td>
                     </tr>
                 `;
             });
