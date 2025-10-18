@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/index.css">
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9744418770114604" crossorigin="anonymous"></script>
     <title>Pagina de tiempos - Sabbatini</title>
 </head>
 
@@ -12,7 +11,7 @@
     <div class="header-banner">
         <div class="header-content">
             <div class="header-title-wrapper">
-                <div class="header-title">Pagina de tiempos - Sabbatini</div>
+                <div class="header-title" id="rallyName">Pagina de tiempos - Sabbatini</div>
                 <div class="header-subtitle">Sistema de Seguimiento en Tiempo Real | Creado por Sabbatini Martin</div>
             </div>
             <div class="logo-container">
@@ -21,7 +20,7 @@
         </div>
     </div>
 
-    <div class="anuncio"></div>
+    <!-- <div class="anuncio"></div> -->
 
     <div class="container">
         <div class="buttonContainer">
@@ -36,12 +35,13 @@
         <div class="last-update" id="lastUpdate"></div>
     </div>
 
-    <div class="anuncio"></div>
+    <!-- <div class="anuncio"></div> -->
 
     <script>
         const TRAMOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=0&single=true&output=csv';
         const PILOTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1122371230&single=true&output=csv';
-        
+        const RALLY_NAME_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1067104904&single=true&output=csv';
+
         let tramosData = [];
         let pilotosData = [];
 
@@ -60,6 +60,22 @@
             }
             
             return data;
+        }
+
+        async function loadRallyName() {
+            try {
+                const response = await fetch(RALLY_NAME_URL);
+                const text = await response.text();
+                const data = parseCSV(text);
+                
+                if (data.length > 0 && data[0].Nombre && data[0].Nombre.trim() !== '') {
+                    const nombreRally = data[0].Nombre.trim();
+                    document.getElementById('rallyName').textContent = nombreRally;
+                    document.title = nombreRally;
+                }
+            } catch (error) {
+                console.error('Error al cargar el nombre del rally:', error);
+            }
         }
 
         function timeToSeconds(timeStr) {
@@ -229,6 +245,7 @@
                 `🔄 Última actualización: ${timeStr}`;
         }
 
+        loadRallyName();
         loadData();
         setInterval(loadData, 30000);
     </script>
