@@ -19,6 +19,19 @@
         <div class="last-update" id="lastUpdate"></div>
     </div>
 
+    <div class="anuncio">
+        <script type="text/javascript">
+            atOptions = {
+                'key' : '43228b318a2a8ae3c5aa2d56930ee759',
+                'format' : 'iframe',
+                'height' : 90,
+                'width' : 728,
+                'params' : {}
+            };
+        </script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/43228b318a2a8ae3c5aa2d56930ee759/invoke.js"></script>
+    </div>
+
     <script>
         const PILOTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1122371230&single=true&output=csv';
         const TRAMOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=0&single=true&output=csv';
@@ -138,6 +151,18 @@
             return '+' + secondsToTime(diffSeconds);
         }
 
+        function calcularVelocidadPromedio(tiempoSegundos, distanciaKm) {
+            if (tiempoSegundos >= 999999 || !distanciaKm || distanciaKm === '') return '-';
+            
+            const distancia = parseFloat(distanciaKm);
+            if (isNaN(distancia) || distancia <= 0) return '-';
+            
+            const tiempoHoras = tiempoSegundos / 3600;
+            const velocidad = distancia / tiempoHoras;
+            
+            return velocidad.toFixed(0);
+        }
+
         async function loadData() {
             try {
                 const [pilotosResponse, tramosResponse] = await Promise.all([
@@ -238,6 +263,10 @@
 
             const ssColumn = `SS${peNumber}`;
             
+            // Obtener la distancia del tramo actual
+            const tramoActual = tramosData.find(t => t.PE === peNumber);
+            const distanciaTramo = tramoActual ? tramoActual.KMS : null;
+            
             const categorias = [...new Set(pilotosData.map(p => p.Categoria || p.CATEGORIA))].filter(c => c).sort();
 
             let htmlPE = '<div class="section-title">Clasificación P.E.</div>';
@@ -274,6 +303,7 @@
                                         <th>Clase</th>
                                         <th>Tiempo</th>
                                         <th>Diferencia</th>
+                                        <th>PROM</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -282,6 +312,7 @@
                 pilotosCategoria.forEach((piloto, index) => {
                     const diferencia = piloto.tiempoSegundos - mejorTiempo;
                     const rowClass = index === 0 ? 'pos-1' : '';
+                    const velocidadProm = calcularVelocidadPromedio(piloto.tiempoSegundos, distanciaTramo);
 
                     htmlPE += `
                         <tr class="${rowClass}">
@@ -290,6 +321,7 @@
                             <td>${piloto.categoria}</td>
                             <td>${piloto.tiempo}</td>
                             <td>${formatDifference(diferencia)}</td>
+                            <td>${velocidadProm}</td>
                         </tr>
                     `;
                 });

@@ -21,6 +21,11 @@ body {
     box-shadow: 0 10px 40px rgba(0,0,0,0.3);
 }
 
+.anuncio {
+    display: flex;
+    justify-content: center;
+}
+
 .btn-back {
     display: inline-flex;
     align-items: center;
