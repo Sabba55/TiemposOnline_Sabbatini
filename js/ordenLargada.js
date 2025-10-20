@@ -1,0 +1,132 @@
+const INSCRIPTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1217848665&single=true&output=csv';
+
+let inscriptosData = [];
+
+function parseCSV(csv) {
+    const lines = csv.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    const data = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const values = lines[i].split(',').map(v => v.trim());
+        const obj = {};
+        headers.forEach((header, index) => {
+            obj[header] = values[index] || '';
+        });
+        
+        const nombre = obj.Nombre || obj.NOMBRE || '';
+        const categoria = obj.Categoria || obj.CATEGORIA || '';
+        
+        if (nombre && categoria) {
+            data.push(obj);
+        }
+    }
+    
+    return data;
+}
+
+async function loadData() {
+    try {
+        const response = await fetch(INSCRIPTOS_URL);
+        const text = await response.text();
+        
+        inscriptosData = parseCSV(text);
+        
+        renderInscriptos();
+        updateLastUpdate();
+    } catch (error) {
+        document.getElementById('content').innerHTML = 
+            '<div class="error">⚠️ Error al cargar los datos. Por favor, verifica que la hoja de cálculo esté publicada correctamente.</div>';
+        console.error('Error:', error);
+    }
+}
+
+function obtenerColumnasSS() {
+    if (inscriptosData.length === 0) return [];
+    
+    const primeraFila = inscriptosData[0];
+    const columnasSS = Object.keys(primeraFila)
+        .filter(key => key.match(/^SS\d+$/))
+        .sort((a, b) => {
+            const numA = parseInt(a.replace('SS', ''));
+            const numB = parseInt(b.replace('SS', ''));
+            return numA - numB;
+        });
+    
+    return columnasSS;
+}
+
+function renderInscriptos() {
+    if (inscriptosData.length === 0) {
+        document.getElementById('content').innerHTML = 
+            '<div class="error">❌ No se encontraron ordenes de largadas.</div>';
+        return;
+    }
+
+    const columnasSS = obtenerColumnasSS();
+
+    let html = `
+        <div class="category-section">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>N°</th>
+                            <th>Piloto</th>
+                            <th>Categoría</th>
+    `;
+
+    columnasSS.forEach(ss => {
+        const numero = ss.replace('SS', '');
+        html += `<th>PE ${numero}</th>`;
+    });
+
+    html += `
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+
+    inscriptosData.forEach((inscripto, index) => {
+        const nombre = inscripto.Nombre || inscripto.NOMBRE || '';
+        const categoria = inscripto.Categoria || inscripto.CATEGORIA || '';
+
+        html += `
+            <tr>
+                <td><strong>${index + 1}</strong></td>
+                <td>${nombre}</td>
+                <td>${categoria}</td>
+        `;
+
+        columnasSS.forEach(ss => {
+            const horario = inscripto[ss] || '-';
+            html += `<td>${horario}</td>`;
+        });
+
+        html += `
+            </tr>
+        `;
+    });
+
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('content').innerHTML = html;
+}
+
+function updateLastUpdate() {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('es-AR');
+    document.getElementById('lastUpdate').textContent = 
+        `🔄 Última actualización: ${timeStr}`;
+}
+
+loadData();
+setInterval(loadData, 30000);

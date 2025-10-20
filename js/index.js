@@ -1,0 +1,219 @@
+const TRAMOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=0&single=true&output=csv';
+const PILOTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1122371230&single=true&output=csv';
+const RALLY_NAME_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1067104904&single=true&output=csv';
+
+let tramosData = [];
+let pilotosData = [];
+
+function parseCSV(csv) {
+    const lines = csv.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    const data = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const obj = {};
+        headers.forEach((header, index) => {
+            obj[header] = values[index] || '';
+        });
+        data.push(obj);
+    }
+    
+    return data;
+}
+
+async function loadRallyName() {
+    try {
+        const response = await fetch(RALLY_NAME_URL);
+        const text = await response.text();
+        const data = parseCSV(text);
+        
+        if (data.length > 0 && data[0].Nombre && data[0].Nombre.trim() !== '') {
+            const nombreRally = data[0].Nombre.trim();
+            document.getElementById('rallyName').textContent = nombreRally;
+            document.title = nombreRally;
+        }
+    } catch (error) {
+        console.error('Error al cargar el nombre del rally:', error);
+    }
+}
+
+function timeToSeconds(timeStr) {
+    if (!timeStr || timeStr === '') return 999999;
+    
+    const parts = timeStr.split(':');
+    if (parts.length === 2) {
+        return parseInt(parts[0]) * 60 + parseFloat(parts[1]);
+    } else if (parts.length === 3) {
+        return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2]);
+    }
+    return 999999;
+}
+
+function obtenerGanadorPE(peNumber) {
+    const ssColumn = `SS${peNumber}`;
+    let mejorPiloto = null;
+    let mejorTiempo = 999999;
+
+    pilotosData.forEach(piloto => {
+        const tiempo = piloto[ssColumn];
+        if (tiempo && tiempo !== '') {
+            const segundos = timeToSeconds(tiempo);
+            if (segundos < mejorTiempo) {
+                mejorTiempo = segundos;
+                mejorPiloto = {
+                    nombre: piloto.Nombre || piloto.NOMBRE || '',
+                    tiempo: tiempo
+                };
+            }
+        }
+    });
+
+    return mejorPiloto;
+}
+
+function validarConsistenciaDatos() {
+    // Contar cuántos PE hay en tramosData
+    const numeroPEs = tramosData.length;
+    
+    // Contar cuántas columnas SS hay en pilotosData
+    if (pilotosData.length === 0) {
+        return { valido: false, mensaje: 'No hay datos de pilotos' };
+    }
+    
+    const primeraFila = pilotosData[0];
+    const columnasSS = Object.keys(primeraFila).filter(key => key.match(/^SS\d+$/));
+    const numeroSS = columnasSS.length;
+    
+    if (numeroPEs !== numeroSS) {
+        return {
+            valido: false,
+            mensaje: `⚠️ INCONSISTENCIA DE DATOS: ⚠️\n\n` +
+                    `• PE en tabla de Tramos: ${numeroPEs}\n` +
+                    `• Columnas SS en tabla de Pilotos: ${numeroSS}\n\n` +
+                    `El número de PE debe coincidir con el número de columnas SS en la tabla de pilotos.\n` +
+                    `Por favor, no seas boludo y corregi las hojas de cálculo.`
+        };
+    }
+    
+    return { valido: true };
+}
+
+async function loadData() {
+    try {
+        const [tramosResponse, pilotosResponse] = await Promise.all([
+            fetch(TRAMOS_URL),
+            fetch(PILOTOS_URL)
+        ]);
+        
+        const tramosText = await tramosResponse.text();
+        const pilotosText = await pilotosResponse.text();
+        
+        tramosData = parseCSV(tramosText);
+        pilotosData = parseCSV(pilotosText);
+        
+        // Validar consistencia de datos
+        const validacion = validarConsistenciaDatos();
+        if (!validacion.valido) {
+            alert(validacion.mensaje);
+            document.getElementById('content').innerHTML = 
+                '<div class="error"> ' + validacion.mensaje.replace(/\n/g, '<br>') + '</div>';
+            return;
+        }
+        
+        renderMenu();
+        updateLastUpdate();
+    } catch (error) {
+        document.getElementById('content').innerHTML = 
+            '<div class="error">⚠️ Error al cargar los datos. Por favor, verifica que la hoja de cálculo esté publicada correctamente.</div>';
+        console.error('Error:', error);
+    }
+}
+
+function renderMenu() {
+    if (tramosData.length === 0) {
+        document.getElementById('content').innerHTML = 
+            '<div class="error">❌ No se encontraron datos de tramos.</div>';
+        return;
+    }
+
+    let html = `
+        <table>
+            <thead>
+                <tr>
+                    <th>PE</th>
+                    <th>Desde - Hasta</th>
+                    <th>KMS</th>
+                    <th>Hora</th>
+                    <th>Resultados</th>
+                    <th>Ganador</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    tramosData.forEach(tramo => {
+        const pe = tramo.PE || '';
+        const desde = tramo.Desde || '';
+        const hasta = tramo.Hasta || '';
+        const desdeHasta = desde && hasta ? `${desde} - ${hasta}` : '';
+        const kms = tramo.KMS || '';
+        const hora = tramo.HORA || '';
+
+        const ganador = obtenerGanadorPE(pe);
+        let ganadorHTML = '-';
+        
+        if (ganador) {
+            ganadorHTML = `
+                <div>${ganador.nombre}</div>
+                <span class="ganador-tiempo">${ganador.tiempo}</span>
+            `;
+        }
+
+        html += `
+            <tr>
+                <td><span class="pe-number">${pe}</span></td>
+                <td>${desdeHasta}</td>
+                <td><strong>${kms}</strong></td>
+                <td>${hora}</td>
+                <td>
+                    <div style="display: flex; gap: 8px; justify-content: center;">
+                        <button class="btn-clases" onclick="verGeneral('${pe}')">
+                            General
+                        </button>
+                        <button class="btn-clases" onclick="verClases('${pe}')">
+                            Por Clases
+                        </button>
+                    </div>
+                </td>
+                <td class="ganador-cell">${ganadorHTML}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+            </tbody>
+        </table>
+    `;
+
+    document.getElementById('content').innerHTML = html;
+}
+
+function verClases(pe) {
+    window.location.href = `tramo.html?pe=${pe}`;
+}
+
+function verGeneral(pe) {
+    window.location.href = `tramoGeneral.html?pe=${pe}`;
+}
+
+function updateLastUpdate() {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('es-AR');
+    document.getElementById('lastUpdate').textContent = 
+        `🔄 Última actualización: ${timeStr}`;
+}
+
+loadRallyName();
+loadData();
+setInterval(loadData, 30000);

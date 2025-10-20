@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/tramo.css">
+    <title>Inscriptos - Sabbatini</title>
+    <style>
+         /* Estilos para la tabla */
+        table {
+            margin: 0 auto;
+            font-size: 16px !important;
+        }
+        
+        th, td {
+            padding: 12px 20px !important;
+            white-space: nowrap;
+            font-size: 16px !important;
+        }
+        
+        th {
+            font-size: 17px !important;
+            font-weight: 700 !important;
+        }
+        
+        td strong {
+            font-size: 18px !important;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .contador-inscriptos {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-radius: 12px;
+            border-left: 4px solid #1e40af;
+        }
+
+        .contador-principal {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #cbd5e1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .contador-numero {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1e40af;
+        }
+
+        .contador-texto {
+            font-size: 32px;
+            color: #475569;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .contador-categorias {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .categoria-item {
+            background: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-width: 120px;
+        }
+
+        .categoria-nombre {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e40af;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .categoria-cantidad {
+            font-size: 24px;
+            font-weight: 700;
+            color: #334155;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <a href="/index.html" class="btn-back">
+            <span>←</span>
+            <span>Volver al Menú</span>
+        </a>
+        <h1>INSCRIPTOS PROVISORIOS</h1>
+        <div class="contador-inscriptos">
+            <div class="contador-principal">
+                <span class="contador-numero" id="contadorPilotos">0</span>
+                <span class="contador-texto">Pilotos</span>
+            </div>
+            <div class="contador-categorias" id="contadorCategorias"></div>
+        </div>
+        <div id="content" class="loading">Cargando datos</div>
+        <div class="last-update" id="lastUpdate"></div>
+    </div>
+    <div class="anuncio">
+        <script type="text/javascript">
+            atOptions = {
+                'key' : '43228b318a2a8ae3c5aa2d56930ee759',
+                'format' : 'iframe',
+                'height' : 90,
+                'width' : 728,
+                'params' : {}
+            };
+        </script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/43228b318a2a8ae3c5aa2d56930ee759/invoke.js"></script>
+    </div>
+    
+    <script src="/js/inscriptos.js"></script>
+
+</body>
+</html>
