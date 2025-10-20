@@ -3,45 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" href="/css/tramo.css">
-    <title>Orden de Largada - Sabbatini</title>
+    <link rel="stylesheet" href="/css/tramo.css">
+    <title>Inscriptos - Sabbatini</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        .contador-inscriptos {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-radius: 12px;
+            border-left: 4px solid #1e40af;
         }
 
-        body {
-            height: 100vh;
-            width: 100vw;
-            background-image: url('https://pbs.twimg.com/media/Fp_H4XUX0AA2C1Z.jpg'); 
-            background-position: center;
-            background-repeat: no-repeat;
+        .contador-principal {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #cbd5e1;
             display: flex;
-            justify-content: flex-start;
-            align-items: flex-start;
-            font-family: Arial, sans-serif;
-        }
-
-        .btn-back {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            text-decoration: none;
-            padding: 10px 18px;
-            border-radius: 8px;
-            display: flex;
+            justify-content: center;
             align-items: center;
-            gap: 6px;
-            font-size: 16px;
-            transition: background 0.3s;
+            gap: 10px;
         }
 
-        .btn-back:hover {
-            background: rgba(0, 0, 0, 0.8);
+        .contador-numero {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1e40af;
+        }
+
+        .contador-texto {
+            font-size: 32px;
+            color: #475569;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .contador-categorias {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .categoria-item {
+            background: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-width: 120px;
+        }
+
+        .categoria-nombre {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e40af;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .categoria-cantidad {
+            font-size: 24px;
+            font-weight: 700;
+            color: #334155;
         }
     </style>
 </head>
@@ -52,7 +76,171 @@
             <span>←</span>
             <span>Volver al Menú</span>
         </a>
-        <h1>INSCRIPTOS (La estoy laburando)</h1>
+        <h1>INSCRIPTOS PROVISORIOS</h1>
+        <div class="contador-inscriptos">
+            <div class="contador-principal">
+                <span class="contador-numero" id="contadorPilotos">0</span>
+                <span class="contador-texto">Pilotos</span>
+            </div>
+            <div class="contador-categorias" id="contadorCategorias"></div>
+        </div>
+        <div id="content" class="loading">Cargando datos</div>
+        <div class="last-update" id="lastUpdate"></div>
     </div>
+    <div class="anuncio">
+        <script type="text/javascript">
+            atOptions = {
+                'key' : '43228b318a2a8ae3c5aa2d56930ee759',
+                'format' : 'iframe',
+                'height' : 90,
+                'width' : 728,
+                'params' : {}
+            };
+        </script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/43228b318a2a8ae3c5aa2d56930ee759/invoke.js"></script>
+    </div>
+    
+    <script>
+        const INSCRIPTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=297990427&single=true&output=csv';
+        
+        let inscriptosData = [];
+
+        function parseCSV(csv) {
+            const lines = csv.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                const values = lines[i].split(',').map(v => v.trim());
+                const obj = {};
+                headers.forEach((header, index) => {
+                    obj[header] = values[index] || '';
+                });
+                
+                const numero = obj['Nº'] || obj.Nº || '';
+                const nombre = obj.NOMBRE || '';
+                const vehiculo = obj.VEHICULO || '';
+                const categoria = obj.CATEGORIA || '';
+                
+                if (nombre && categoria) {
+                    data.push({
+                        numero: numero,
+                        nombre: nombre,
+                        vehiculo: vehiculo,
+                        categoria: categoria
+                    });
+                }
+            }
+            
+            return data;
+        }
+
+        async function loadData() {
+            try {
+                const response = await fetch(INSCRIPTOS_URL);
+                const text = await response.text();
+                
+                inscriptosData = parseCSV(text);
+                
+                // Ordenar por categoría
+                inscriptosData.sort((a, b) => {
+                    if (a.categoria < b.categoria) return -1;
+                    if (a.categoria > b.categoria) return 1;
+                    return 0;
+                });
+                
+                renderInscriptos();
+                updateLastUpdate();
+            } catch (error) {
+                document.getElementById('content').innerHTML = 
+                    '<div class="error">⚠️ Error al cargar los datos. Por favor, verifica que la hoja de cálculo esté publicada correctamente.</div>';
+                console.error('Error:', error);
+            }
+        }
+
+        function renderInscriptos() {
+            if (inscriptosData.length === 0) {
+                document.getElementById('content').innerHTML = 
+                    '<div class="error">❌ No se encontraron inscriptos.</div>';
+                document.getElementById('contadorPilotos').textContent = '0';
+                document.getElementById('contadorCategorias').innerHTML = '';
+                return;
+            }
+
+            // Actualizar contador total
+            document.getElementById('contadorPilotos').textContent = inscriptosData.length;
+
+            // Contar pilotos por categoría
+            const categorias = {};
+            inscriptosData.forEach(inscripto => {
+                const cat = inscripto.categoria;
+                if (categorias[cat]) {
+                    categorias[cat]++;
+                } else {
+                    categorias[cat] = 1;
+                }
+            });
+
+            // Renderizar contador de categorías
+            let categoriasHTML = '';
+            Object.keys(categorias).sort().forEach(categoria => {
+                categoriasHTML += `
+                    <div class="categoria-item">
+                        <div class="categoria-nombre">${categoria}</div>
+                        <div class="categoria-cantidad">${categorias[categoria]}</div>
+                    </div>
+                `;
+            });
+            document.getElementById('contadorCategorias').innerHTML = categoriasHTML;
+
+            let html = `
+                <div class="category-section">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nº</th>
+                                    <th>Piloto</th>
+                                    <th>Vehículo</th>
+                                    <th>Categoría</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            inscriptosData.forEach((inscripto) => {
+                html += `
+                    <tr>
+                        <td><strong>${inscripto.numero}</strong></td>
+                        <td>${inscripto.nombre}</td>
+                        <td>${inscripto.vehiculo}</td>
+                        <td>${inscripto.categoria}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function updateLastUpdate() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('es-AR');
+            document.getElementById('lastUpdate').textContent = 
+                `🔄 Última actualización: ${timeStr}`;
+        }
+
+        loadData();
+        setInterval(loadData, 30000);
+    </script>
 </body>
 </html>
