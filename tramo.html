@@ -384,13 +384,14 @@
                     const tiempoFormateado = secondsToTime(piloto.totalSegundos);
                     const penalizFormateada = piloto.penalizacionSegundos > 0 ? secondsToTime(piloto.penalizacionSegundos) : '-';
                     const totalFormateado = secondsToTime(piloto.totalConPenalizacion);
+                    const penalizClass = piloto.penalizacionSegundos > 0 ? 'penalizacion-activa' : '';
 
                     htmlGeneral += `
                         <tr class="${rowClass}">
                             <td><strong>${index + 1}</strong></td>
                             <td>${piloto.nombre}</td>
                             <td>${tiempoFormateado}</td>
-                            <td>${penalizFormateada}</td>
+                            <td class="${penalizClass}">${penalizFormateada}</td>
                             <td>${totalFormateado}</td>
                             <td>${formatDifference(dif1)}</td>
                             <td>${formatDifference(difAnt)}</td>

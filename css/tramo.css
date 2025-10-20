@@ -241,6 +241,19 @@ tr:hover td {
     font-style: italic;
 }
 
+td:last-child {
+    border-right: none;
+}
+
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.penalizacion-activa {
+    color: #dc2626;
+    font-weight: normal;
+}
+
 /* Media Queries para Responsive */
 @media (max-width: 1024px) {
     .tables-container {
