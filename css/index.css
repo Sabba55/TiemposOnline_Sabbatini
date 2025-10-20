@@ -11,6 +11,8 @@ body {
     min-height: 100vh;
     padding: 0;
     padding-top: 100px;
+    max-width: 1300px;
+    min-width: 1300px;
 }
 
 .container {
