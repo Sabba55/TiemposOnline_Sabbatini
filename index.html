@@ -196,7 +196,7 @@
                             <th>Desde - Hasta</th>
                             <th>KMS</th>
                             <th>Hora</th>
-                            <th>Clases</th>
+                            <th>Resultados</th>
                             <th>Ganador</th>
                         </tr>
                     </thead>
@@ -228,9 +228,14 @@
                         <td><strong>${kms}</strong></td>
                         <td>${hora}</td>
                         <td>
-                            <button class="btn-clases" onclick="verClases('${pe}')">
-                                Ver Resultados
-                            </button>
+                            <div style="display: flex; gap: 8px; justify-content: center;">
+                                <button class="btn-clases" onclick="verGeneral('${pe}')">
+                                    General
+                                </button>
+                                <button class="btn-clases" onclick="verClases('${pe}')">
+                                    Por Clases
+                                </button>
+                            </div>
                         </td>
                         <td class="ganador-cell">${ganadorHTML}</td>
                     </tr>
@@ -247,6 +252,10 @@
 
         function verClases(pe) {
             window.location.href = `tramo.html?pe=${pe}`;
+        }
+
+        function verGeneral(pe) {
+            window.location.href = `tramoGeneral.html?pe=${pe}`;
         }
 
         function updateLastUpdate() {
