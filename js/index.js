@@ -200,11 +200,11 @@ function renderMenu() {
 }
 
 function verClases(pe) {
-    window.location.href = `tramo.html?pe=${pe}`;
+    window.location.href = `pages/tramo.html?pe=${pe}`;
 }
 
 function verGeneral(pe) {
-    window.location.href = `tramoGeneral.html?pe=${pe}`;
+    window.location.href = `pages/tramoGeneral.html?pe=${pe}`;
 }
 
 function updateLastUpdate() {
