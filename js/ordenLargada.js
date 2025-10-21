@@ -59,6 +59,31 @@ function obtenerColumnasSS() {
     return columnasSS;
 }
 
+function convertirHorarioAMinutos(horario) {
+    if (!horario || horario === '-') return Infinity;
+    
+    const match = horario.match(/(\d{1,2}):(\d{2})/);
+    if (!match) return Infinity;
+    
+    const horas = parseInt(match[1]);
+    const minutos = parseInt(match[2]);
+    return horas * 60 + minutos;
+}
+
+function obtenerHorarioMasTemplano(inscripto, columnasSS) {
+    let minTiempo = Infinity;
+    
+    columnasSS.forEach(ss => {
+        const horario = inscripto[ss];
+        const tiempo = convertirHorarioAMinutos(horario);
+        if (tiempo < minTiempo) {
+            minTiempo = tiempo;
+        }
+    });
+    
+    return minTiempo;
+}
+
 function renderInscriptos() {
     if (inscriptosData.length === 0) {
         document.getElementById('content').innerHTML = 
@@ -67,6 +92,13 @@ function renderInscriptos() {
     }
 
     const columnasSS = obtenerColumnasSS();
+    
+    // Ordenar los datos por horario más temprano
+    const datosOrdenados = [...inscriptosData].sort((a, b) => {
+        const tiempoA = obtenerHorarioMasTemplano(a, columnasSS);
+        const tiempoB = obtenerHorarioMasTemplano(b, columnasSS);
+        return tiempoA - tiempoB;
+    });
 
     let html = `
         <div class="category-section">
@@ -90,14 +122,14 @@ function renderInscriptos() {
                     <tbody>
     `;
 
-    inscriptosData.forEach((inscripto, index) => {
+    datosOrdenados.forEach((inscripto, index) => {
         const nombre = inscripto.Nombre || inscripto.NOMBRE || '';
         const categoria = inscripto.Categoria || inscripto.CATEGORIA || '';
 
         html += `
             <tr>
                 <td><strong>${index + 1}</strong></td>
-                <td>${nombre}</td>
+                <td><strong>${nombre}</strong></td>
                 <td>${categoria}</td>
         `;
 
