@@ -1,9 +1,11 @@
 const TRAMOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=0&single=true&output=csv';
 const PILOTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1122371230&single=true&output=csv';
 const RALLY_NAME_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1067104904&single=true&output=csv';
+const INSCRIPTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1217848665&single=true&output=csv';
 
 let tramosData = [];
 let pilotosData = [];
+let inscriptosData = [];
 
 function parseCSV(csv) {
     const lines = csv.trim().split('\n');
@@ -72,6 +74,36 @@ function obtenerGanadorPE(peNumber) {
     return mejorPiloto;
 }
 
+function convertirHorarioAMinutos(horario) {
+    if (!horario || horario === '-' || horario === '') return Infinity;
+    
+    const match = horario.match(/(\d{1,2}):(\d{2})/);
+    if (!match) return Infinity;
+    
+    const horas = parseInt(match[1]);
+    const minutos = parseInt(match[2]);
+    return horas * 60 + minutos;
+}
+
+function obtenerHorarioMasTemplanoPE(peNumber) {
+    const ssColumn = `SS${peNumber}`;
+    let minTiempo = Infinity;
+    let horarioMasTemplano = '';
+    
+    inscriptosData.forEach(inscripto => {
+        const horario = inscripto[ssColumn];
+        if (horario && horario !== '-' && horario !== '') {
+            const tiempo = convertirHorarioAMinutos(horario);
+            if (tiempo < minTiempo) {
+                minTiempo = tiempo;
+                horarioMasTemplano = horario;
+            }
+        }
+    });
+    
+    return horarioMasTemplano;
+}
+
 function validarConsistenciaDatos() {
     // Contar cuántos PE hay en tramosData
     const numeroPEs = tramosData.length;
@@ -101,16 +133,19 @@ function validarConsistenciaDatos() {
 
 async function loadData() {
     try {
-        const [tramosResponse, pilotosResponse] = await Promise.all([
+        const [tramosResponse, pilotosResponse, inscriptosResponse] = await Promise.all([
             fetch(TRAMOS_URL),
-            fetch(PILOTOS_URL)
+            fetch(PILOTOS_URL),
+            fetch(INSCRIPTOS_URL)
         ]);
         
         const tramosText = await tramosResponse.text();
         const pilotosText = await pilotosResponse.text();
+        const inscriptosText = await inscriptosResponse.text();
         
         tramosData = parseCSV(tramosText);
         pilotosData = parseCSV(pilotosText);
+        inscriptosData = parseCSV(inscriptosText);
         
         // Validar consistencia de datos
         const validacion = validarConsistenciaDatos();
@@ -158,7 +193,9 @@ function renderMenu() {
         const hasta = tramo.Hasta || '';
         const desdeHasta = desde && hasta ? `${desde} - ${hasta}` : '';
         const kms = tramo.KMS || '';
-        const hora = tramo.HORA || '';
+        
+        // Obtener horario automáticamente del primer auto en largar
+        const hora = obtenerHorarioMasTemplanoPE(pe);
 
         const ganador = obtenerGanadorPE(pe);
         let ganadorHTML = '-';
