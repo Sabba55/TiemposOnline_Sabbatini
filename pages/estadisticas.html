@@ -17,15 +17,24 @@
             background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
             min-height: 100vh;
             padding: 20px;
+            max-width: 1300px;
+            min-width: 1300px;
         }
 
         .container {
-            max-width: 1400px;
+
+            max-width: 1300px;
+            min-width: 1300px;
             margin: 30px auto;
             background-color: white;
             padding: 30px;
             border-radius: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .anuncio {
+            display: flex;
+            justify-content: center;
         }
 
         .btn-back {
@@ -69,7 +78,6 @@
             background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
             padding: 20px;
             border-radius: 12px;
-            margin-bottom: 30px;
             border-left: 4px solid #1e40af;
         }
 
@@ -100,6 +108,10 @@
         .indice-link:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(30, 58, 138, 0.4);
+        }
+
+        html {
+            scroll-behavior: smooth;
         }
 
         .categoria-section {
@@ -269,17 +281,158 @@
             border-radius: 8px;
         }
 
+        /* Media Queries para Responsive */
+        @media (max-width: 1024px) {
+            .stats-grid {
+                gap: 20px;
+            }
+        }
+
         @media (max-width: 768px) {
+            body {
+                padding: 5px;
+            }
+
+            .container {
+                padding: 10px;
+                margin: 5px auto;
+                border-radius: 8px;
+            }
+
+            .btn-back {
+                padding: 8px 12px;
+                margin-bottom: 10px;
+            }
+
+            h1 {
+                margin-bottom: 15px;
+            }
+
+            .indice {
+                padding: 10px;
+            }
+
+            .indice h2 {
+                font-size: 16px;
+                margin-bottom: 10px;
+            }
+
+            .indice-links {
+                gap: 8px;
+            }
+
+            .indice-link {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            .categoria-header {
+                font-size: 18px;
+                padding: 10px;
+                margin-bottom: 15px;
+            }
+
+            .categoria-section {
+                margin-bottom: 30px;
+            }
+
             .stats-grid {
                 grid-template-columns: 1fr;
+                gap: 15px;
+                margin-bottom: 20px;
             }
-            
+
+            .stat-card {
+                padding: 15px;
+            }
+
+            .stat-card h3 {
+                font-size: 14px;
+                padding: 10px;
+                margin: -15px -15px 12px -15px;
+            }
+
+            .ganador-item {
+                padding: 8px;
+                font-size: 12px;
+            }
+
+            .lider-periodo {
+                padding: 10px;
+                font-size: 12px;
+            }
+
+            .lider-pes {
+                min-width: 60px;
+                font-size: 12px;
+            }
+
             .abandonos-info {
                 flex-direction: column;
+                gap: 10px;
             }
-            
+
+            .abandono-stat {
+                padding: 15px;
+            }
+
+            .abandono-numero {
+                font-size: 36px;
+            }
+
+            .abandono-label {
+                font-size: 12px;
+            }
+
             .chart-container {
                 height: 300px;
+            }
+
+            .last-update {
+                font-size: 10px;
+                padding: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 20px;
+            }
+
+            .categoria-header {
+                font-size: 16px;
+                padding: 8px;
+            }
+
+            .btn-back {
+                padding: 6px 10px;
+                font-size: 10px;
+            }
+
+            .indice h2 {
+                font-size: 14px;
+            }
+
+            .indice-link {
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+
+            .stat-card h3 {
+                font-size: 12px;
+            }
+
+            .ganador-item,
+            .lider-periodo {
+                font-size: 11px;
+            }
+
+            .abandono-numero {
+                font-size: 28px;
+            }
+
+            .chart-container {
+                height: 250px;
             }
         }
     </style>
@@ -294,12 +447,24 @@
         <h1>ESTADÍSTICAS DEL RALLY</h1>
 
         <div class="indice">
-            <h2>📊 Índice de Categorías</h2>
+            <h2>Índice de Categorías</h2>
             <div class="indice-links" id="indiceLinks"></div>
         </div>
 
         <div id="content" class="loading">Cargando estadísticas</div>
         <div class="last-update" id="lastUpdate"></div>
+    </div>
+    <div class="anuncio">
+        <script type="text/javascript">
+            atOptions = {
+                'key' : '43228b318a2a8ae3c5aa2d56930ee759',
+                'format' : 'iframe',
+                'height' : 90,
+                'width' : 728,
+                'params' : {}
+            };
+        </script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/43228b318a2a8ae3c5aa2d56930ee759/invoke.js"></script>
     </div>
 
     <script>
@@ -508,7 +673,7 @@
             
             // Calcular posiciones por PE
             const evolucionPosiciones = {};
-            const mejoresPosiciones = {}; // Guardar la mejor posición de cada piloto
+            const pilotosEnTop5 = new Set(); // Pilotos que alguna vez estuvieron en top 5
             
             for (let pe = 1; pe <= numTramos; pe++) {
                 const clasificacion = pilotosCategoria
@@ -528,57 +693,80 @@
                         posicion: index + 1
                     });
                     
-                    // Actualizar mejor posición
-                    if (!mejoresPosiciones[piloto.nombre] || index + 1 < mejoresPosiciones[piloto.nombre]) {
-                        mejoresPosiciones[piloto.nombre] = index + 1;
+                    // Marcar pilotos que estuvieron en top 5
+                    if (index < 5) {
+                        pilotosEnTop5.add(piloto.nombre);
                     }
                 });
             }
             
-            // Obtener los 5 pilotos con mejor posición en toda la carrera
-            const top5 = Object.entries(mejoresPosiciones)
-                .sort((a, b) => a[1] - b[1])
-                .slice(0, 5)
-                .map(([nombre]) => nombre);
+            // Solo incluir pilotos que alguna vez estuvieron en el top 5
+            const todosPilotos = Array.from(pilotosEnTop5);
+            
+            // Calcular cuántos PE cada piloto estuvo en top 5 (para ordenar)
+            const pesEnTop5 = {};
+            todosPilotos.forEach(nombre => {
+                const datos = evolucionPosiciones[nombre] || [];
+                pesEnTop5[nombre] = datos.filter(d => d.posicion <= 5).length;
+            });
+            
+            // Ordenar por cantidad de veces en top 5 (descendente)
+            todosPilotos.sort((a, b) => pesEnTop5[b] - pesEnTop5[a]);
             
             return {
                 evolucionPosiciones,
-                top5: top5
+                todosPilotos: todosPilotos,
+                pesEnTop5: pesEnTop5
             };
         }
 
         function crearGrafico(canvasId, categoria, datosEvolucion) {
             const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            
             const ctx = canvas.getContext('2d');
             
             const numTramos = tramosData.length;
             const labels = Array.from({length: numTramos}, (_, i) => `PE${i + 1}`);
             
             const colores = [
-                '#1e40af', // Azul
-                '#dc2626', // Rojo
-                '#059669', // Verde
-                '#d97706', // Naranja
-                '#7c3aed'  // Morado
+                '#1e40af', '#dc2626', '#059669', '#d97706', '#7c3aed',
+                '#0891b2', '#e11d48', '#65a30d', '#ea580c', '#a855f7',
+                '#0284c7', '#be123c', '#4d7c0f', '#c2410c', '#7e22ce',
+                '#0369a1', '#9f1239', '#3f6212', '#9a3412', '#6b21a8'
             ];
             
-            const datasets = datosEvolucion.top5.map((nombre, index) => {
+            // Validar que todosPilotos exista y sea un array
+            if (!datosEvolucion || !datosEvolucion.todosPilotos || !Array.isArray(datosEvolucion.todosPilotos)) {
+                console.error('Datos de evolución inválidos:', datosEvolucion);
+                return;
+            }
+            
+            const datasets = datosEvolucion.todosPilotos.map((nombre, index) => {
                 const datos = datosEvolucion.evolucionPosiciones[nombre] || [];
                 const dataPoints = Array(numTramos).fill(null);
                 
+                // Solo agregar puntos cuando el piloto está en top 5
                 datos.forEach(d => {
-                    dataPoints[d.pe - 1] = d.posicion;
+                    if (d.posicion <= 5) {
+                        dataPoints[d.pe - 1] = d.posicion;
+                    }
                 });
+                
+                // Mostrar por defecto solo los primeros 5
+                const esVisible = index < 5;
                 
                 return {
                     label: nombre,
                     data: dataPoints,
-                    borderColor: colores[index],
-                    backgroundColor: colores[index],
+                    borderColor: colores[index % colores.length],
+                    backgroundColor: colores[index % colores.length],
                     tension: 0.3,
-                    borderWidth: 3,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
+                    borderWidth: esVisible ? 3 : 2,
+                    pointRadius: esVisible ? 4 : 2,
+                    pointHoverRadius: 6,
+                    hidden: !esVisible,
+                    spanGaps: false // NO conectar cuando hay gaps
                 };
             });
             
@@ -616,7 +804,15 @@
                     plugins: {
                         legend: {
                             display: true,
-                            position: 'bottom'
+                            position: 'bottom',
+                            onClick: function(e, legendItem, legend) {
+                                const index = legendItem.datasetIndex;
+                                const ci = legend.chart;
+                                const meta = ci.getDatasetMeta(index);
+                                
+                                meta.hidden = !meta.hidden;
+                                ci.update();
+                            }
                         },
                         tooltip: {
                             callbacks: {
@@ -687,7 +883,7 @@
                             
                             <!-- Líderes Generales -->
                             <div class="stat-card">
-                                <h3>👑 Evolución de Líderes</h3>
+                                <h3>🏆 LIDERES DE LA GENERAL</h3>
                                 <div class="lideres-timeline">
                 `;
                 
@@ -745,7 +941,13 @@
             categorias.forEach(categoria => {
                 const catId = categoria.replace(/\s+/g, '-').toLowerCase();
                 const datosEvolucion = generarGraficoEvolucion(categoria);
-                crearGrafico(`chart-${catId}`, categoria, datosEvolucion);
+                
+                // Validar que los datos sean correctos antes de crear el gráfico
+                if (datosEvolucion && datosEvolucion.todosPilotos && datosEvolucion.todosPilotos.length > 0) {
+                    crearGrafico(`chart-${catId}`, categoria, datosEvolucion);
+                } else {
+                    console.warn(`No hay datos suficientes para crear gráfico de ${categoria}`);
+                }
             });
         }
 
@@ -779,7 +981,7 @@
         }
 
         loadData();
-        setInterval(loadData, 60000); // Actualiza cada minuto
+        setInterval(loadData, 120000); // Actualiza cada 2 minutos
     </script>
 </body>
 </html>
