@@ -315,6 +315,13 @@
                 gap: 8px;
             }
 
+            .indice-link.disabled {
+                background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+                opacity: 0.6;
+                cursor: not-allowed;
+                pointer-events: none;
+            }
+
             .categoria-header {
                 padding: 10px;
                 margin-bottom: 15px;
@@ -420,12 +427,37 @@
             return data;
         }
 
+        function corregirFormatoTiempo(timeStr) {
+            if (!timeStr || timeStr === '') return '';
+            
+            // Eliminar espacios
+            let tiempo = timeStr.trim();
+            
+            // Contar cuántos separadores hay
+            const separadores = (tiempo.match(/[:.,]/g) || []).length;
+            
+            if (separadores === 2) {
+                // Formato: XX:XX:XXX o XX.XX.XXX o XX,XX,XXX o variaciones
+                // Dividir y reconstruir en formato estándar MM:SS.mmm
+                const partes = tiempo.split(/[:.,]/);
+                if (partes.length === 3) {
+                    tiempo = `${partes[0]}:${partes[1]}.${partes[2]}`;
+                }
+            } else if (separadores === 1) {
+                // Ya está en formato correcto o solo necesita cambiar el separador de decimales
+                tiempo = tiempo.replace(/[,]/, '.');
+            }
+            
+            return tiempo;
+        }
+
         function timeToSeconds(timeStr) {
             if (!timeStr || timeStr === '') return 999999;
             
-            timeStr = timeStr.trim().replace(/[,]/, '.');
-            const parts = timeStr.split(':');
+            // Corregir el formato antes de procesar
+            timeStr = corregirFormatoTiempo(timeStr);
             
+            const parts = timeStr.split(':');
             if (parts.length === 2) {
                 return parseInt(parts[0]) * 60 + parseFloat(parts[1]);
             } else if (parts.length === 3) {
@@ -587,7 +619,11 @@
                 }
             });
             
-            return { largados, abandonos };
+            return { 
+                largados, 
+                abandonos,
+                tieneDatos: largados > 0  // Nueva propiedad
+            };
         }
 
         function generarGraficoEvolucion(categoria) {
@@ -678,8 +714,11 @@
                     }
                 });
                 
-                // Mostrar por defecto solo los primeros 5
-                const esVisible = index < 5;
+                // Contar cuántos puntos válidos tiene
+                const puntosValidos = dataPoints.filter(p => p !== null).length;
+                
+                // Mostrar por defecto solo los primeros 5 Y que tengan datos completos
+                const esVisible = index < 5 && puntosValidos >= numTramos * 0.5;
                 
                 return {
                     label: nombre,
@@ -764,7 +803,9 @@
             let indiceHTML = '';
             categorias.forEach(cat => {
                 const catId = cat.replace(/\s+/g, '-').toLowerCase();
-                indiceHTML += `<a class="indice-link" href="#${catId}">${cat}</a>`;
+                const { tieneDatos } = calcularAbandonos(cat);
+                const disabledClass = tieneDatos ? '' : ' disabled';
+                indiceHTML += `<a class="indice-link${disabledClass}" href="#${catId}">${cat}</a>`;
             });
             document.getElementById('indiceLinks').innerHTML = indiceHTML;
 
@@ -775,7 +816,12 @@
                 const catId = categoria.replace(/\s+/g, '-').toLowerCase();
                 const ganadores = obtenerGanadoresPorTramo(categoria);
                 const lideres = obtenerLideresGenerales(categoria);
-                const { largados, abandonos } = calcularAbandonos(categoria);
+            const { largados, abandonos, tieneDatos } = calcularAbandonos(categoria);
+            
+            // Si no hay datos, saltar esta categoría
+            if (!tieneDatos) {
+                return;
+            }
                 const datosEvolucion = generarGraficoEvolucion(categoria);
                 
                 html += `

@@ -1,6 +1,6 @@
-const INSCRIPTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1217848665&single=true&output=csv';
+const ORDENLARGADA_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1217848665&single=true&output=csv';
 
-let inscriptosData = [];
+let ordenLargadaData = [];
 
 function parseCSV(csv) {
     const lines = csv.trim().split('\n');
@@ -30,12 +30,12 @@ function parseCSV(csv) {
 
 async function loadData() {
     try {
-        const response = await fetch(INSCRIPTOS_URL);
+        const response = await fetch(ORDENLARGADA_URL);
         const text = await response.text();
         
-        inscriptosData = parseCSV(text);
+        ordenLargadaData = parseCSV(text);
         
-        renderInscriptos();
+        renderOrdenLargada();
         updateLastUpdate();
     } catch (error) {
         document.getElementById('content').innerHTML = 
@@ -45,9 +45,9 @@ async function loadData() {
 }
 
 function obtenerColumnasSS() {
-    if (inscriptosData.length === 0) return [];
+    if (ordenLargadaData.length === 0) return [];
     
-    const primeraFila = inscriptosData[0];
+    const primeraFila = ordenLargadaData[0];
     const columnasSS = Object.keys(primeraFila)
         .filter(key => key.match(/^SS\d+$/))
         .sort((a, b) => {
@@ -70,11 +70,11 @@ function convertirHorarioAMinutos(horario) {
     return horas * 60 + minutos;
 }
 
-function obtenerHorarioMasTemplano(inscripto, columnasSS) {
+function obtenerHorarioMasTemplano(piloto, columnasSS) {
     let minTiempo = Infinity;
     
     columnasSS.forEach(ss => {
-        const horario = inscripto[ss];
+        const horario = piloto[ss];
         const tiempo = convertirHorarioAMinutos(horario);
         if (tiempo < minTiempo) {
             minTiempo = tiempo;
@@ -84,8 +84,8 @@ function obtenerHorarioMasTemplano(inscripto, columnasSS) {
     return minTiempo;
 }
 
-function renderInscriptos() {
-    if (inscriptosData.length === 0) {
+function renderOrdenLargada() {
+    if (ordenLargadaData.length === 0) {
         document.getElementById('content').innerHTML = 
             '<div class="error">❌ No se encontraron ordenes de largadas.</div>';
         return;
@@ -94,7 +94,7 @@ function renderInscriptos() {
     const columnasSS = obtenerColumnasSS();
     
     // Ordenar los datos por horario más temprano
-    const datosOrdenados = [...inscriptosData].sort((a, b) => {
+    const datosOrdenados = [...ordenLargadaData].sort((a, b) => {
         const tiempoA = obtenerHorarioMasTemplano(a, columnasSS);
         const tiempoB = obtenerHorarioMasTemplano(b, columnasSS);
         return tiempoA - tiempoB;
@@ -122,9 +122,9 @@ function renderInscriptos() {
                     <tbody>
     `;
 
-    datosOrdenados.forEach((inscripto, index) => {
-        const nombre = inscripto.Nombre || inscripto.NOMBRE || '';
-        const categoria = inscripto.Categoria || inscripto.CATEGORIA || '';
+    datosOrdenados.forEach((piloto, index) => {
+        const nombre = piloto.Nombre || piloto.NOMBRE || '';
+        const categoria = piloto.Categoria || piloto.CATEGORIA || '';
 
         html += `
             <tr>
@@ -134,7 +134,7 @@ function renderInscriptos() {
         `;
 
         columnasSS.forEach(ss => {
-            const horario = inscripto[ss] || '-';
+            const horario = piloto[ss] || '-';
             html += `<td>${horario}</td>`;
         });
 
