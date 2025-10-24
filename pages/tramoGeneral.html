@@ -168,6 +168,7 @@
             border-right: 2px solid #e5e7eb;
             background-color: #fff;
             font-size: 13px;
+            color: #2b2b2b; /*VER DE CAMBIAR*/
         }
 
         td:last-child {
@@ -178,12 +179,19 @@
             border-bottom: none;
         }
 
+        tbody tr:nth-child(odd) td {
+            background-color: #f3f4f6;
+        }
+
+        tbody tr:nth-child(even) td {
+            background-color: #fff;
+        }
+
         tr:hover td {
-            background-color: #eff6ff;
+            background-color: #dbeafe !important;
         }
 
         .pos-1 td {
-            background-color: #fff !important;
             font-weight: bold;
         }
 
@@ -192,6 +200,11 @@
             color: white;
             font-size: 16px;
             font-weight: 700;
+        }
+
+        .pos-1 td:not(:first-child) {
+            background-color: #fef3c7 !important;
+            color: #2b2b2b;
         }
 
         .error {
