@@ -77,8 +77,16 @@ function corregirFormatoTiempo(timeStr) {
     return tiempo;
 }
 
+function esDNF(timeStr) {
+    if (!timeStr) return false;
+    const valorLimpio = timeStr.trim().toUpperCase();
+    return valorLimpio === 'DNF' || valorLimpio === 'D.N.F' || valorLimpio === 'D.N.F.';
+}
+
 function timeToSeconds(timeStr) {
     if (!timeStr || timeStr === '') return 999999;
+    
+    if (esDNF(timeStr)) return 999999;
     
     timeStr = corregirFormatoTiempo(timeStr);
     
@@ -121,6 +129,22 @@ function calcularVelocidadPromedio(tiempoSegundos, distanciaKm) {
     return velocidad.toFixed(0);
 }
 
+function obtenerPeorTiempoCategoria(pilotosCategoria) {
+    let peorTiempo = 0;
+    
+    pilotosCategoria.forEach(piloto => {
+        if (piloto.tiempoSegundos < 999999 && piloto.tiempoSegundos > peorTiempo) {
+            peorTiempo = piloto.tiempoSegundos;
+        }
+    });
+    
+    return peorTiempo;
+}
+
+function calcularTiempoDNF(peorTiempoCategoria) {
+    return peorTiempoCategoria + 60;
+}
+
 async function loadData() {
     try {
         const [pilotosResponse, tramosResponse] = await Promise.all([
@@ -141,29 +165,6 @@ async function loadData() {
             '<div class="error">Error al cargar los datos.</div>';
         console.error('Error:', error);
     }
-}
-
-function calcularTotalAcumulado(piloto, hastaPE) {
-    let totalSegundos = 0;
-    
-    for (let i = 1; i <= hastaPE; i++) {
-        const ssColumn = `SS${i}`;
-        const tiempo = piloto[ssColumn];
-        
-        if (!tiempo || tiempo === '') {
-            return 999999;
-        }
-        
-        const segundos = timeToSeconds(tiempo);
-        
-        if (segundos >= 999999) {
-            return 999999;
-        }
-        
-        totalSegundos += segundos;
-    }
-    
-    return totalSegundos;
 }
 
 function mostrarInfoTramo() {
@@ -207,7 +208,7 @@ function renderResults() {
 
     if (pilotosData.length === 0) {
         document.getElementById('content').innerHTML = 
-            '<div class="error">❌ No se encontraron datos de pilotos.</div>';
+            '<div class="error">⚠ No se encontraron datos de pilotos.</div>';
         return;
     }
 
@@ -215,20 +216,36 @@ function renderResults() {
     const tramoActual = tramosData.find(t => t.PE === peNumber);
     const distanciaTramo = tramoActual ? tramoActual.KMS : null;
 
-    // Clasificación P.E. General (todos juntos)
+    // Clasificación P.E. General
     const pilotosPE = pilotosData
         .filter(p => p[ssColumn])
         .map(p => {
-            const totalAcumulado = calcularTotalAcumulado(p, peNumero);
+            const valorTiempo = p[ssColumn];
+            const tieneDNF = esDNF(valorTiempo);
+            
             return {
                 nombre: p.Nombre || p.NOMBRE || '',
                 categoria: p.Categoria || p.CATEGORIA || '',
-                tiempo: p[ssColumn],
-                tiempoSegundos: timeToSeconds(p[ssColumn]),
-                totalSegundos: totalAcumulado
+                tiempo: valorTiempo,
+                tiempoSegundos: timeToSeconds(valorTiempo),
+                tieneDNF: tieneDNF
             };
         })
         .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
+
+    // Obtener el peor tiempo (excluyendo DNF)
+    const peorTiempoPE = obtenerPeorTiempoCategoria(pilotosPE);
+    
+    // Procesar pilotos con DNF
+    pilotosPE.forEach(piloto => {
+        if (piloto.tieneDNF) {
+            piloto.tiempoSegundos = calcularTiempoDNF(peorTiempoPE);
+            piloto.tiempo = secondsToTime(piloto.tiempoSegundos);
+        }
+    });
+    
+    // Reordenar después de aplicar tiempos DNF
+    pilotosPE.sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
 
     const mejorTiempo = pilotosPE.length > 0 ? pilotosPE[0].tiempoSegundos : 0;
 
@@ -250,15 +267,17 @@ function renderResults() {
 
     pilotosPE.forEach((piloto, index) => {
         const diferencia = piloto.tiempoSegundos - mejorTiempo;
-        const rowClass = index === 0 ? 'pos-1' : '';
+        const claseFilaDNF = piloto.tieneDNF ? 'fila-dnf' : '';
+        const rowClass = index === 0 ? 'pos-1' : claseFilaDNF;
         const velocidadProm = calcularVelocidadPromedio(piloto.tiempoSegundos, distanciaTramo);
+        const tiempoMostrar = piloto.tieneDNF ? 'DNF' : piloto.tiempo;
 
         htmlPE += `
             <tr class="${rowClass}">
                 <td><strong>${index + 1}</strong></td>
                 <td>${piloto.nombre}</td>
                 <td>${piloto.categoria}</td>
-                <td>${piloto.tiempo}</td>
+                <td>${tiempoMostrar}</td>
                 <td>${formatDifference(diferencia)}</td>
                 <td>${velocidadProm}</td>
             </tr>
@@ -270,23 +289,60 @@ function renderResults() {
         </table>
     `;
 
-    // Clasificación General Acumulada (todos juntos)
+    // Clasificación General Acumulada
     const pilotosGeneral = pilotosData
         .map(p => {
-            const totalAcumulado = calcularTotalAcumulado(p, peNumero);
+            let totalSegundos = 0;
+            let tuvoDNF = false;
+            
+            // Sumar todos los tramos del PE1 hasta el PE actual
+            for (let i = 1; i <= peNumero; i++) {
+                const columnaSS = `SS${i}`;
+                const tiempo = p[columnaSS];
+                
+                if (!tiempo || tiempo === '') {
+                    return null;
+                }
+                
+                if (esDNF(tiempo)) {
+                    // Calcular el peor tiempo de ESTE tramo específico
+                    const pilotosEsteTramo = pilotosData
+                        .filter(piloto => piloto[columnaSS])
+                        .map(piloto => {
+                            const valorTiempo = piloto[columnaSS];
+                            return {
+                                tiempoSegundos: timeToSeconds(valorTiempo),
+                                tieneDNF: esDNF(valorTiempo)
+                            };
+                        })
+                        .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
+                    
+                    const peorTiempoTramo = obtenerPeorTiempoCategoria(pilotosEsteTramo);
+                    totalSegundos += calcularTiempoDNF(peorTiempoTramo);
+                    tuvoDNF = true;
+                } else {
+                    const segundos = timeToSeconds(tiempo);
+                    if (segundos >= 999999) {
+                        return null;
+                    }
+                    totalSegundos += segundos;
+                }
+            }
+            
             const penalizacion = timeToSeconds(p.PENALIZACION || p.Penalizacion || '');
             const penalizacionSegundos = penalizacion < 999999 ? penalizacion : 0;
-            const totalConPenalizacion = totalAcumulado + penalizacionSegundos;
+            const totalConPenalizacion = totalSegundos + penalizacionSegundos;
             
             return {
                 nombre: p.Nombre || p.NOMBRE || '',
                 categoria: p.Categoria || p.CATEGORIA || '',
-                totalSegundos: totalAcumulado,
+                totalSegundos: totalSegundos,
                 penalizacionSegundos: penalizacionSegundos,
-                totalConPenalizacion: totalConPenalizacion
+                totalConPenalizacion: totalConPenalizacion,
+                tieneDNF: tuvoDNF
             };
         })
-        .filter(p => p.totalSegundos < 999999)
+        .filter(p => p !== null)
         .sort((a, b) => a.totalConPenalizacion - b.totalConPenalizacion);
 
     const mejorTotal = pilotosGeneral.length > 0 ? pilotosGeneral[0].totalConPenalizacion : 0;
@@ -312,7 +368,7 @@ function renderResults() {
     pilotosGeneral.forEach((piloto, index) => {
         const dif1 = piloto.totalConPenalizacion - mejorTotal;
         const difAnt = index > 0 ? piloto.totalConPenalizacion - pilotosGeneral[index - 1].totalConPenalizacion : 0;
-        const rowClass = index === 0 ? 'pos-1' : '';
+        const rowClass = index === 0 ? 'pos-1' : (piloto.tieneDNF ? 'fila-dnf' : '');
         const tiempoFormateado = secondsToTime(piloto.totalSegundos);
         const penalizFormateada = piloto.penalizacionSegundos > 0 ? secondsToTime(piloto.penalizacionSegundos) : '-';
         const totalFormateado = secondsToTime(piloto.totalConPenalizacion);

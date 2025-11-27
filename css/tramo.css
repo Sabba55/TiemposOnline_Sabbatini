@@ -118,9 +118,17 @@ h1 {
 }
 
 .table-column {
-    flex: 1;
-    min-width: 550px;
-    width: 50%;
+    min-width: 0px;
+}
+
+.table-column:first-child {
+    width: 45%;
+    flex: 0 0 45%;
+}
+
+.table-column:last-child {
+    width: 55%;
+    flex: 0 0 55%;
 }
 
 .section-title {
@@ -268,6 +276,15 @@ tbody tr:last-child td {
 .penalizacion-activa {
     color: #dc2626;
     font-weight: normal;
+}
+
+.fila-dnf td {
+    color: #dc2626 !important;
+    font-weight: 600;
+}
+
+.fila-dnf td:first-child {
+    background-color: #fee2e2 !important;
 }
 
 /* Media Queries para Responsive */
