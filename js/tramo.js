@@ -62,21 +62,15 @@ function analizarTramosCSV(csv) {
 function corregirFormatoTiempo(cadenaHora) {
     if (!cadenaHora || cadenaHora === '') return '';
     
-    // Eliminar espacios
     let tiempo = cadenaHora.trim();
-    
-    // Contar cuántos separadores hay
     const separadores = (tiempo.match(/[:.,]/g) || []).length;
     
     if (separadores === 2) {
-        // Formato: XX:XX:XXX o XX.XX.XXX o XX,XX,XXX o variaciones
-        // Dividir y reconstruir en formato estándar MM:SS.mmm
         const partes = tiempo.split(/[:.,]/);
         if (partes.length === 3) {
             tiempo = `${partes[0]}:${partes[1]}.${partes[2]}`;
         }
     } else if (separadores === 1) {
-        // Ya está en formato correcto o solo necesita cambiar el separador de decimales
         tiempo = tiempo.replace(/[,]/, '.');
     }
     
@@ -92,10 +86,8 @@ function esDNF(cadenaHora) {
 function tiempoASegundos(cadenaHora) {
     if (!cadenaHora || cadenaHora === '') return 999999;
     
-    // Verificar si es DNF
     if (esDNF(cadenaHora)) return 999999;
     
-    // Corregir el formato antes de procesar
     cadenaHora = corregirFormatoTiempo(cadenaHora);
     
     const partes = cadenaHora.split(':');
@@ -162,19 +154,16 @@ async function cargarDatos() {
 function calcularTotalAcumulado(piloto, hastaPE) {
     let totalSegundos = 0;
     
-    // Validar que tenga TODOS los tiempos consecutivos desde SS1 hasta hastaPE
     for (let i = 1; i <= hastaPE; i++) {
         const columnaSS = `SS${i}`;
         const tiempo = piloto[columnaSS];
         
-        // Si falta algún tiempo o está vacío, retornar 999999 (no aparecerá en general)
         if (!tiempo || tiempo === '') {
             return 999999;
         }
         
         const segundos = tiempoASegundos(tiempo);
         
-        // Si el tiempo no es válido, retornar 999999
         if (segundos >= 999999) {
             return 999999;
         }
@@ -183,11 +172,6 @@ function calcularTotalAcumulado(piloto, hastaPE) {
     }
     
     return totalSegundos;
-}
-
-function obtenerPenalizacion(piloto) {
-    const penalizacion = tiempoASegundos(piloto.PENALIZACION || piloto.Penalizacion || '');
-    return penalizacion < 999999 ? penalizacion : 0;
 }
 
 function obtenerPeorTiempoCategoria(pilotosCategoria) {
@@ -203,8 +187,68 @@ function obtenerPeorTiempoCategoria(pilotosCategoria) {
 }
 
 function calcularTiempoDNF(peorTiempoCategoria) {
-    // Peor tiempo + 1 minuto (60 segundos)
     return peorTiempoCategoria + 60;
+}
+
+// NUEVA FUNCIÓN: Calcular posiciones del PE anterior
+function calcularPosicionesAnterior(categoria, numeroPEInt) {
+    if (numeroPEInt <= 1) return {}; // No hay PE anterior
+    
+    const pilotosAnterior = datosPilotos
+        .filter(p => (p.Categoria || p.CATEGORIA) === categoria)
+        .map(p => {
+            let totalSegundos = 0;
+            
+            for (let i = 1; i < numeroPEInt; i++) { // Hasta el PE anterior
+                const columnaSS = `SS${i}`;
+                const tiempo = p[columnaSS];
+                
+                if (!tiempo || tiempo === '') {
+                    return null;
+                }
+                
+                if (esDNF(tiempo)) {
+                    const pilotosEsteTramo = datosPilotos
+                        .filter(piloto => (piloto.Categoria || piloto.CATEGORIA) === categoria && piloto[columnaSS])
+                        .map(piloto => {
+                            const valorTiempo = piloto[columnaSS];
+                            return {
+                                tiempoSegundos: tiempoASegundos(valorTiempo),
+                                tieneDNF: esDNF(valorTiempo)
+                            };
+                        })
+                        .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
+                    
+                    const peorTiempoTramo = obtenerPeorTiempoCategoria(pilotosEsteTramo);
+                    totalSegundos += calcularTiempoDNF(peorTiempoTramo);
+                } else {
+                    const segundos = tiempoASegundos(tiempo);
+                    if (segundos >= 999999) {
+                        return null;
+                    }
+                    totalSegundos += segundos;
+                }
+            }
+            
+            const penalizacion = tiempoASegundos(p.PENALIZACION || p.Penalizacion || '');
+            const penalizacionSegundos = penalizacion < 999999 ? penalizacion : 0;
+            const totalConPenalizacion = totalSegundos + penalizacionSegundos;
+            
+            return {
+                nombre: p.Nombre || p.NOMBRE || '',
+                totalConPenalizacion: totalConPenalizacion
+            };
+        })
+        .filter(p => p !== null)
+        .sort((a, b) => a.totalConPenalizacion - b.totalConPenalizacion);
+    
+    // Crear mapa de nombre -> posición
+    const posiciones = {};
+    pilotosAnterior.forEach((piloto, indice) => {
+        posiciones[piloto.nombre] = indice + 1;
+    });
+    
+    return posiciones;
 }
 
 function mostrarInfoTramo() {
@@ -253,8 +297,6 @@ function renderizarResultados() {
     }
 
     const columnaSSActual = `SS${numeroPE}`;
-    
-    // Obtener la distancia del tramo actual
     const tramoActual = datosTramos.find(t => t.PE === numeroPE);
     const distanciaTramo = tramoActual ? tramoActual.KMS : null;
     
@@ -263,6 +305,7 @@ function renderizarResultados() {
     let htmlPE = '<div class="section-title">Clasificación P.E.</div>';
     let htmlGeneral = '<div class="section-title">Clasificación General</div>';
 
+    // Clasificación PE (sin cambios)
     categorias.forEach(categoria => {
         const pilotosCategoria = datosPilotos
             .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[columnaSSActual])
@@ -284,10 +327,8 @@ function renderizarResultados() {
 
         if (pilotosCategoria.length === 0) return;
 
-        // Obtener el peor tiempo de la categoría (excluyendo DNF)
         const peorTiempoCategoria = obtenerPeorTiempoCategoria(pilotosCategoria);
         
-        // Procesar pilotos con DNF
         pilotosCategoria.forEach(piloto => {
             if (piloto.tieneDNF) {
                 piloto.tiempoSegundos = calcularTiempoDNF(peorTiempoCategoria);
@@ -295,7 +336,6 @@ function renderizarResultados() {
             }
         });
         
-        // Reordenar después de aplicar tiempos DNF
         pilotosCategoria.sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
 
         const mejorTiempo = pilotosCategoria[0].tiempoSegundos;
@@ -310,7 +350,7 @@ function renderizarResultados() {
                                 <th>Pos</th>
                                 <th>Piloto</th>
                                 <th>Tiempo</th>
-                                <th>Diferencia</th>
+                                <th>Dif. 1°</th>
                                 <th>PROM</th>
                             </tr>
                         </thead>
@@ -343,25 +383,26 @@ function renderizarResultados() {
         `;
     });
 
+    // Clasificación General (CON indicadores de cambio de posición)
     categorias.forEach(categoria => {
+        // Obtener posiciones del PE anterior
+        const posicionesAnterior = calcularPosicionesAnterior(categoria, numeroPEInt);
+        
         const pilotosGeneralCategoria = datosPilotos
             .filter(p => (p.Categoria || p.CATEGORIA) === categoria)
             .map(p => {
                 let totalSegundos = 0;
                 let tuvoDNF = false;
                 
-                // Sumar todos los tramos del PE1 hasta el PE actual
                 for (let i = 1; i <= numeroPEInt; i++) {
                     const columnaSS = `SS${i}`;
                     const tiempo = p[columnaSS];
                     
                     if (!tiempo || tiempo === '') {
-                        // Si no tiene tiempo en este tramo, no se puede calcular el total
                         return null;
                     }
                     
                     if (esDNF(tiempo)) {
-                        // Calcular el peor tiempo de ESTE tramo específico
                         const pilotosEsteTramo = datosPilotos
                             .filter(piloto => (piloto.Categoria || piloto.CATEGORIA) === categoria && piloto[columnaSS])
                             .map(piloto => {
@@ -374,12 +415,9 @@ function renderizarResultados() {
                             .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
                         
                         const peorTiempoTramo = obtenerPeorTiempoCategoria(pilotosEsteTramo);
-                        
-                        // Si tiene DNF, usar el tiempo calculado (peor tiempo de ESTE tramo + 60s)
                         totalSegundos += calcularTiempoDNF(peorTiempoTramo);
                         tuvoDNF = true;
                     } else {
-                        // Tiempo normal
                         const segundos = tiempoASegundos(tiempo);
                         if (segundos >= 999999) {
                             return null;
@@ -401,7 +439,7 @@ function renderizarResultados() {
                     tieneDNF: tuvoDNF
                 };
             })
-            .filter(p => p !== null) // Filtrar pilotos sin datos completos
+            .filter(p => p !== null)
             .sort((a, b) => a.totalConPenalizacion - b.totalConPenalizacion);
 
         if (pilotosGeneralCategoria.length === 0) return;
@@ -428,11 +466,27 @@ function renderizarResultados() {
         `;
 
         pilotosGeneralCategoria.forEach((piloto, indice) => {
+            const posicionActual = indice + 1;
+            const posicionAnterior = posicionesAnterior[piloto.nombre];
+            
+            // Calcular cambio de posición
+            let indicadorHTML = '';
+            if (posicionAnterior && numeroPEInt > 1) {
+                const cambio = posicionAnterior - posicionActual;
+                if (cambio > 0) {
+                    // Subió posiciones
+                    indicadorHTML = `<div class="position-change position-up"><i class="fa-solid fa-arrow-up"></i> +${cambio}</div>`;
+                } else if (cambio < 0) {
+                    // Bajó posiciones
+                    indicadorHTML = `<div class="position-change position-down"><i class="fa-solid fa-arrow-down"></i> ${cambio}</div>`;
+                }
+                // Si cambio === 0, no se muestra nada
+            }
+            
             const dif1 = piloto.totalConPenalizacion - mejorTotal;
             const difAnt = indice > 0 ? piloto.totalConPenalizacion - pilotosGeneralCategoria[indice - 1].totalConPenalizacion : 0;
             const claseFila = indice === 0 ? 'pos-1' : (piloto.tieneDNF ? 'fila-dnf' : '');
             
-            // Mostrar tiempos SIEMPRE como números, incluso si tiene DNF
             const tiempoFormateado = segundosATiempo(piloto.totalSegundos);
             const penalizFormateada = piloto.penalizacionSegundos > 0 ? segundosATiempo(piloto.penalizacionSegundos) : '-';
             const totalFormateado = segundosATiempo(piloto.totalConPenalizacion);
@@ -440,7 +494,12 @@ function renderizarResultados() {
 
             htmlGeneral += `
                 <tr class="${claseFila}">
-                    <td><strong>${indice + 1}</strong></td>
+                    <td>
+                        <div class="position-cell">
+                            <strong>${posicionActual}</strong>
+                            ${indicadorHTML}
+                        </div>
+                    </td>
                     <td>${piloto.nombre}</td>
                     <td>${tiempoFormateado}</td>
                     <td class="${clasePenaliz}">${penalizFormateada}</td>

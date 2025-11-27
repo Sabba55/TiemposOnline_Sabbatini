@@ -1,6 +1,8 @@
 const ORDENLARGADA_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1217848665&single=true&output=csv';
 
 let ordenLargadaData = [];
+let ordenLargadaDataAnterior = []; // Guardar datos anteriores para comparar
+let horariosModificados = new Set(); // Almacenar qué horarios cambiaron
 
 function parseCSV(csv) {
     const lines = csv.trim().split('\n');
@@ -28,15 +30,67 @@ function parseCSV(csv) {
     return data;
 }
 
+function detectarCambiosHorarios(datosNuevos, datosAnteriores) {
+    const cambios = new Set();
+    
+    if (datosAnteriores.length === 0) {
+        // Primera carga, no hay cambios
+        return cambios;
+    }
+    
+    const columnasSS = obtenerColumnasSS();
+    
+    datosNuevos.forEach(pilotoNuevo => {
+        const nombreNuevo = pilotoNuevo.Nombre || pilotoNuevo.NOMBRE || '';
+        
+        // Buscar el piloto en los datos anteriores
+        const pilotoAnterior = datosAnteriores.find(p => {
+            const nombreAnterior = p.Nombre || p.NOMBRE || '';
+            return nombreAnterior === nombreNuevo;
+        });
+        
+        if (pilotoAnterior) {
+            // Comparar cada columna SS
+            columnasSS.forEach(ss => {
+                const horarioNuevo = pilotoNuevo[ss] || '-';
+                const horarioAnterior = pilotoAnterior[ss] || '-';
+                
+                if (horarioNuevo !== horarioAnterior) {
+                    // Crear un identificador único para este cambio
+                    const claveHorario = `${nombreNuevo}_${ss}`;
+                    cambios.add(claveHorario);
+                }
+            });
+        }
+    });
+    
+    return cambios;
+}
+
 async function loadData() {
     try {
         const response = await fetch(ORDENLARGADA_URL);
         const text = await response.text();
         
-        ordenLargadaData = parseCSV(text);
+        const datosNuevos = parseCSV(text);
+        
+        // Detectar cambios antes de actualizar
+        horariosModificados = detectarCambiosHorarios(datosNuevos, ordenLargadaData);
+        
+        // Actualizar datos anteriores y actuales
+        ordenLargadaDataAnterior = [...ordenLargadaData];
+        ordenLargadaData = datosNuevos;
         
         renderOrdenLargada();
         updateLastUpdate();
+        
+        // Limpiar los cambios después de 60 segundos (2 actualizaciones)
+        if (horariosModificados.size > 0) {
+            setTimeout(() => {
+                horariosModificados.clear();
+                renderOrdenLargada();
+            }, 60000);
+        }
     } catch (error) {
         document.getElementById('content').innerHTML = 
             '<div class="error">⚠️ Error al cargar los datos. Por favor, verifica que la hoja de cálculo esté publicada correctamente.</div>';
@@ -135,7 +189,13 @@ function renderOrdenLargada() {
 
         columnasSS.forEach(ss => {
             const horario = piloto[ss] || '-';
-            html += `<td>${horario}</td>`;
+            const claveHorario = `${nombre}_${ss}`;
+            
+            // Verificar si este horario fue modificado
+            const fueModificado = horariosModificados.has(claveHorario);
+            const claseExtra = fueModificado ? ' pe-horario-modificado' : '';
+            
+            html += `<td class="pe-horario-cell${claseExtra}">${horario}</td>`;
         });
 
         html += `
@@ -156,8 +216,9 @@ function renderOrdenLargada() {
 function updateLastUpdate() {
     const now = new Date();
     const timeStr = now.toLocaleTimeString('es-AR');
+    const cambiosTexto = horariosModificados.size > 0 ? ` - ⚠️ ${horariosModificados.size} horario(s) modificado(s)` : '';
     document.getElementById('lastUpdate').textContent = 
-        `🔄 Última actualización: ${timeStr}`;
+        `🔄 Última actualización: ${timeStr}${cambiosTexto}`;
 }
 
 loadData();

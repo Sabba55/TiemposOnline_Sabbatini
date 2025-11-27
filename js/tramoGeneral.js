@@ -258,7 +258,7 @@ function renderResults() {
                     <th>Piloto</th>
                     <th>Clase</th>
                     <th>Tiempo</th>
-                    <th>Diferencia</th>
+                    <th>Dif. 1°</th>
                     <th>PROM</th>
                 </tr>
             </thead>

@@ -199,7 +199,8 @@ td {
     background-color: #fff;
     font-size: 13px;
     color: #2b2b2b;
-
+    height: 50px;                   
+    vertical-align: middle;
 }
 
 td:last-child {
@@ -265,14 +266,6 @@ tr:hover td {
     font-style: italic;
 }
 
-td:last-child {
-    border-right: none;
-}
-
-tbody tr:last-child td {
-    border-bottom: none;
-}
-
 .penalizacion-activa {
     color: #dc2626;
     font-weight: normal;
@@ -285,6 +278,34 @@ tbody tr:last-child td {
 
 .fila-dnf td:first-child {
     background-color: #fee2e2 !important;
+}
+
+/* ESTILOS PARA INDICADORES DE POSICIÓN */
+.position-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.position-change {
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    line-height: 1;
+}
+
+.position-change i {
+    font-size: 9px;
+}
+
+.position-up {
+    color: #16a34a;
+}
+
+.position-down {
+    color: #dc2626;
 }
 
 /* Media Queries para Responsive */
@@ -307,7 +328,6 @@ tbody tr:last-child td {
 
     .btn-back {
         padding: 8px 12px;
-        /* font-size: 11px; */
         margin-bottom: 10px;
     }
 
@@ -316,12 +336,10 @@ tbody tr:last-child td {
     }
 
     .tramo-info {
-        /* font-size: 14px; */
         padding: 8px;
     }
 
     .tramo-details {
-        /* flex-direction: column; */
         gap: 5px;
     }
 
@@ -348,6 +366,15 @@ tbody tr:last-child td {
         font-size: 10px;
         padding: 10px;
     }
+    
+    .position-change {
+        font-size: 8px;
+        padding: 1px 3px;
+    }
+    
+    .position-change i {
+        font-size: 7px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -368,4 +395,42 @@ tbody tr:last-child td {
         padding: 6px 10px;
         font-size: 10px;
     }
+}
+
+/* Estilos para columnas PE (Orden de Largada) */
+.pe-horario-cell {
+    font-weight: bold !important;
+    color: #2055aa !important;
+    font-size: 16px !important;
+    transition: all 0.3s ease;
+}
+
+/* Estilo para horarios que fueron modificados */
+.pe-horario-modificado {
+    color: #b91c1c !important;
+    background-color: #fee2e2 !important;
+    animation: pulso-modificado 2s ease-in-out 3;
+    position: relative;
+}
+
+/* Animación de pulso para resaltar el cambio */
+@keyframes pulso-modificado {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(185, 28, 28, 0.4);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 10px 5px rgba(185, 28, 28, 0.2);
+    }
+}
+
+/* Asegurar que el estilo se mantenga en hover */
+tr:hover .pe-horario-cell {
+    color: #1e40af !important;
+}
+
+tr:hover .pe-horario-modificado {
+    color: #991b1b !important;
+    background-color: #fecaca !important;
 }
