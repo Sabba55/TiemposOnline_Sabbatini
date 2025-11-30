@@ -326,23 +326,6 @@ tr:hover td {
         border-radius: 8px;
     }
 
-    .btn-back {
-        padding: 8px 12px;
-        margin-bottom: 10px;
-    }
-
-    h1 {
-        margin-bottom: 15px;
-    }
-
-    .tramo-info {
-        padding: 8px;
-    }
-
-    .tramo-details {
-        gap: 5px;
-    }
-
     .section-title {
         font-size: 14px;
         padding: 10px;
@@ -374,26 +357,6 @@ tr:hover td {
     
     .position-change i {
         font-size: 7px;
-    }
-}
-
-@media (max-width: 480px) {
-    h1 {
-        font-size: 14px;
-    }
-
-    .section-title {
-        font-size: 12px;
-        padding: 8px;
-    }
-
-    .category-title {
-        font-size: 11px;
-    }
-
-    .btn-back {
-        padding: 6px 10px;
-        font-size: 10px;
     }
 }
 
