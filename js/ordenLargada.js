@@ -1,8 +1,9 @@
 const ORDENLARGADA_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1217848665&single=true&output=csv';
 
 let ordenLargadaData = [];
-let ordenLargadaDataAnterior = []; // Guardar datos anteriores para comparar
-let horariosModificados = new Set(); // Almacenar qué horarios cambiaron
+let ordenLargadaDataAnterior = [];
+let horariosModificados = new Set();
+let intervaloContador = null;
 
 function parseCSV(csv) {
     const lines = csv.trim().split('\n');
@@ -34,7 +35,6 @@ function detectarCambiosHorarios(datosNuevos, datosAnteriores) {
     const cambios = new Set();
     
     if (datosAnteriores.length === 0) {
-        // Primera carga, no hay cambios
         return cambios;
     }
     
@@ -43,20 +43,17 @@ function detectarCambiosHorarios(datosNuevos, datosAnteriores) {
     datosNuevos.forEach(pilotoNuevo => {
         const nombreNuevo = pilotoNuevo.Nombre || pilotoNuevo.NOMBRE || '';
         
-        // Buscar el piloto en los datos anteriores
         const pilotoAnterior = datosAnteriores.find(p => {
             const nombreAnterior = p.Nombre || p.NOMBRE || '';
             return nombreAnterior === nombreNuevo;
         });
         
         if (pilotoAnterior) {
-            // Comparar cada columna SS
             columnasSS.forEach(ss => {
                 const horarioNuevo = pilotoNuevo[ss] || '-';
                 const horarioAnterior = pilotoAnterior[ss] || '-';
                 
                 if (horarioNuevo !== horarioAnterior) {
-                    // Crear un identificador único para este cambio
                     const claveHorario = `${nombreNuevo}_${ss}`;
                     cambios.add(claveHorario);
                 }
@@ -74,17 +71,15 @@ async function loadData() {
         
         const datosNuevos = parseCSV(text);
         
-        // Detectar cambios antes de actualizar
         horariosModificados = detectarCambiosHorarios(datosNuevos, ordenLargadaData);
         
-        // Actualizar datos anteriores y actuales
         ordenLargadaDataAnterior = [...ordenLargadaData];
         ordenLargadaData = datosNuevos;
         
         renderOrdenLargada();
+        actualizarContadorProximaLargada();
         updateLastUpdate();
         
-        // Limpiar los cambios después de 60 segundos (2 actualizaciones)
         if (horariosModificados.size > 0) {
             setTimeout(() => {
                 horariosModificados.clear();
@@ -138,6 +133,101 @@ function obtenerHorarioMasTemplano(piloto, columnasSS) {
     return minTiempo;
 }
 
+function encontrarProximaLargada() {
+    if (ordenLargadaData.length === 0) return null;
+    
+    const ahora = new Date();
+    const horaActual = ahora.getHours();
+    const minutosActuales = ahora.getMinutes();
+    const tiempoActualEnMinutos = horaActual * 60 + minutosActuales;
+    
+    const columnasSS = obtenerColumnasSS();
+    let proximaLargada = null;
+    let menorDiferencia = Infinity;
+    
+    ordenLargadaData.forEach(piloto => {
+        const nombre = piloto.Nombre || piloto.NOMBRE || '';
+        const categoria = piloto.Categoria || piloto.CATEGORIA || '';
+        
+        columnasSS.forEach(ss => {
+            const horario = piloto[ss];
+            const tiempoLargada = convertirHorarioAMinutos(horario);
+            
+            if (tiempoLargada !== Infinity) {
+                const diferencia = tiempoLargada - tiempoActualEnMinutos;
+                
+                if (diferencia >= 0 && diferencia < menorDiferencia) {
+                    menorDiferencia = diferencia;
+                    proximaLargada = {
+                        nombre: nombre,
+                        categoria: categoria,
+                        horario: horario,
+                        ss: ss,
+                        minutosRestantes: Math.floor(diferencia)
+                    };
+                }
+            }
+        });
+    });
+    
+    return proximaLargada;
+}
+
+function actualizarContadorProximaLargada() {
+    const proximaLargada = encontrarProximaLargada();
+    const containerContador = document.getElementById('proximaLargadaContainer');
+    
+    if (!proximaLargada) {
+        containerContador.innerHTML = '<div class="sin-largadas">🏁 No hay largadas programadas próximamente</div>';
+        return;
+    }
+    
+    const minutosRestantes = proximaLargada.minutosRestantes;
+    const segundosRestantes = 60 - new Date().getSeconds();
+    const numeroSS = proximaLargada.ss.replace('SS', '');
+    
+    let estadoTexto = '';
+    let estadoClass = '';
+    
+    if (minutosRestantes === 0) {
+        estadoTexto = '¡LARGANDO AHORA!';
+        estadoClass = 'largando-ahora';
+    } else if (minutosRestantes <= 5) {
+        estadoTexto = `Próxima largada en ${minutosRestantes} min ${segundosRestantes}s`;
+        estadoClass = 'urgente';
+    } else if (minutosRestantes <= 15) {
+        estadoTexto = `Próxima largada en ${minutosRestantes} minutos`;
+        estadoClass = 'cercana';
+    } else {
+        estadoTexto = `Próxima largada en ${minutosRestantes} minutos`;
+        estadoClass = 'normal';
+    }
+    
+    containerContador.innerHTML = `
+        <div class="contador-card ${estadoClass}">
+            <div class="contador-header">
+                <h2 class="contador-titulo">${estadoTexto}</h2>
+            </div>
+            <div class="contador-body">
+                <div class="info-piloto">
+                    <div class="info-item">
+                        <span class="label">Piloto:</span>
+                        <span class="valor nombre">${proximaLargada.nombre}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Categoría:</span>
+                        <span class="valor">${proximaLargada.categoria}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Horario:</span>
+                        <span class="valor horario">${proximaLargada.horario} (PE ${numeroSS})</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 function renderOrdenLargada() {
     if (ordenLargadaData.length === 0) {
         document.getElementById('content').innerHTML = 
@@ -147,7 +237,6 @@ function renderOrdenLargada() {
 
     const columnasSS = obtenerColumnasSS();
     
-    // Ordenar los datos por horario más temprano
     const datosOrdenados = [...ordenLargadaData].sort((a, b) => {
         const tiempoA = obtenerHorarioMasTemplano(a, columnasSS);
         const tiempoB = obtenerHorarioMasTemplano(b, columnasSS);
@@ -191,7 +280,6 @@ function renderOrdenLargada() {
             const horario = piloto[ss] || '-';
             const claveHorario = `${nombre}_${ss}`;
             
-            // Verificar si este horario fue modificado
             const fueModificado = horariosModificados.has(claveHorario);
             const claseExtra = fueModificado ? ' pe-horario-modificado' : '';
             
@@ -221,5 +309,12 @@ function updateLastUpdate() {
         `🔄 Última actualización: ${timeStr}${cambiosTexto}`;
 }
 
+// Inicializar
 loadData();
 setInterval(loadData, 30000);
+
+// Actualizar contador cada segundo
+if (intervaloContador) {
+    clearInterval(intervaloContador);
+}
+intervaloContador = setInterval(actualizarContadorProximaLargada, 1000);
