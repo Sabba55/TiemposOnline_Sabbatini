@@ -211,8 +211,8 @@ function renderMenu() {
             <tr>
                 <td><span class="pe-number">${pe}</span></td>
                 <td>${desdeHasta}</td>
-                <td><strong>${kms}</strong></td>
-                <td>${hora}</td>
+                <td>${kms}</td>
+                <td><strong>${hora}</strong></td>
                 <td>
                     <div style="display: flex; gap: 8px; justify-content: center;">
                         <button class="btn-clases" onclick="verGeneral('${pe}')">

@@ -2,9 +2,12 @@ const INSCRIPTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYs
 
 let inscriptosData = [];
 
+/* ==========================
+   PARSEADOR CSV
+========================== */
 function parseCSV(csv) {
     const lines = csv.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
+    const headers = lines[0].split(',').map(h => h.trim().toUpperCase());
     const data = [];
     
     for (let i = 1; i < lines.length; i++) {
@@ -13,11 +16,12 @@ function parseCSV(csv) {
         
         const values = lines[i].split(',').map(v => v.trim());
         const obj = {};
+
         headers.forEach((header, index) => {
             obj[header] = values[index] || '';
         });
-        
-        const numero = obj['Nº'] || obj.Nº || '';
+
+        const numero = obj['Nº'] || '';
         const nombre = obj.NOMBRE || '';
         const vehiculo = obj.VEHICULO || '';
         const categoria = obj.CATEGORIA || '';
@@ -35,6 +39,9 @@ function parseCSV(csv) {
     return data;
 }
 
+/* ==========================
+   CARGA DE DATOS
+========================== */
 async function loadData() {
     try {
         const response = await fetch(INSCRIPTOS_URL);
@@ -42,12 +49,8 @@ async function loadData() {
         
         inscriptosData = parseCSV(text);
         
-        // Ordenar por categoría
-        inscriptosData.sort((a, b) => {
-            if (a.categoria < b.categoria) return -1;
-            if (a.categoria > b.categoria) return 1;
-            return 0;
-        });
+        // Ordenar por categoría alfabéticamente
+        inscriptosData.sort((a, b) => a.categoria.localeCompare(b.categoria));
         
         renderInscriptos();
         updateLastUpdate();
@@ -58,40 +61,45 @@ async function loadData() {
     }
 }
 
+/* ==========================
+   RENDER PRINCIPAL
+========================== */
 function renderInscriptos() {
+    const contentElement = document.getElementById('content');
+    const contadorElement = document.getElementById('contadorPilotos');
+    
+    if (!contentElement || !contadorElement) return;
+
     if (inscriptosData.length === 0) {
-        document.getElementById('content').innerHTML = 
+        contentElement.innerHTML = 
             '<div class="error">❌ No se encontraron inscriptos.</div>';
-        document.getElementById('contadorPilotos').textContent = '0';
-        document.getElementById('contadorCategorias').innerHTML = '';
+        contadorElement.textContent = '0';
         return;
     }
 
-    // Actualizar contador total
-    document.getElementById('contadorPilotos').textContent = inscriptosData.length;
+    contadorElement.textContent = inscriptosData.length;
 
-    // Contar pilotos por categoría
-    const categorias = {};
+    // Conteo + asignación de color por categoría
+    const categoriasInfo = {};
+    let colorIndexCounter = 0;
+    
     inscriptosData.forEach(inscripto => {
         const cat = inscripto.categoria;
-        if (categorias[cat]) {
-            categorias[cat]++;
+
+        if (!categoriasInfo[cat]) {
+
+            // ← ← ← **FIX APLICADO AQUÍ**
+            categoriasInfo[cat] = {
+                count: 1,
+                colorIndex: (colorIndexCounter % 8) + 1
+            };
+            colorIndexCounter++;
+            // ← ← ← **FIN DEL FIX**
+
         } else {
-            categorias[cat] = 1;
+            categoriasInfo[cat].count++;
         }
     });
-
-    // Renderizar contador de categorías
-    let categoriasHTML = '';
-    Object.keys(categorias).sort().forEach(categoria => {
-        categoriasHTML += `
-            <div class="categoria-item">
-                <div class="categoria-nombre">${categoria}</div>
-                <div class="categoria-cantidad">${categorias[categoria]}</div>
-            </div>
-        `;
-    });
-    document.getElementById('contadorCategorias').innerHTML = categoriasHTML;
 
     let html = `
         <div class="category-section">
@@ -108,10 +116,26 @@ function renderInscriptos() {
                     <tbody>
     `;
 
+    let categoriaActual = '';
+
     inscriptosData.forEach((inscripto) => {
+        if (inscripto.categoria !== categoriaActual) {
+            categoriaActual = inscripto.categoria;
+            const info = categoriasInfo[categoriaActual];
+
+            html += `
+                <tr class="category-header category-color-${info.colorIndex}">
+                    <td colspan="4">
+                        <span>CLASE: ${categoriaActual}</span>
+                        <span class="category-count">INSCRIPTOS: ${info.count}</span>
+                    </td>
+                </tr>
+            `;
+        }
+
         html += `
             <tr>
-                <td><strong>${inscripto.numero}</strong></td>
+                <td>${inscripto.numero}</td>
                 <td>${inscripto.nombre}</td>
                 <td>${inscripto.vehiculo}</td>
                 <td>${inscripto.categoria}</td>
@@ -126,15 +150,26 @@ function renderInscriptos() {
         </div>
     `;
 
-    document.getElementById('content').innerHTML = html;
+    contentElement.innerHTML = html;
 }
 
+/* ==========================
+   ACTUALIZADOR DE FECHA/HORA
+========================== */
 function updateLastUpdate() {
+    const lastUpdateElement = document.getElementById('lastUpdate');
+    if (!lastUpdateElement) return;
+
     const now = new Date();
-    const timeStr = now.toLocaleTimeString('es-AR');
-    document.getElementById('lastUpdate').textContent = 
-        `🔄 Última actualización: ${timeStr}`;
+    const timeStr = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dateStr = now.toLocaleDateString('es-AR');
+    
+    lastUpdateElement.textContent = 
+        `🔄 Última actualización: ${dateStr} - ${timeStr}`;
 }
 
+/* ==========================
+   EJECUCIÓN INICIAL
+========================== */
 loadData();
-setInterval(loadData, 30000);
+setInterval(loadData, 300000); // 5 minutos

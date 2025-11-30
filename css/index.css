@@ -239,8 +239,9 @@ tbody tr:hover {
 }
 
 .ganador-tiempo {
-    font-size: 11px;
-    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+    color: #404955;
     display: block;
     margin-top: 2px;
 }
