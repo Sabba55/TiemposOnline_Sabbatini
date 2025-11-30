@@ -364,7 +364,7 @@ tr:hover td {
 .pe-horario-cell {
     font-weight: bold !important;
     color: #2055aa !important;
-    font-size: 16px !important;
+    font-size: 18px !important;
     transition: all 0.3s ease;
 }
 
@@ -372,7 +372,6 @@ tr:hover td {
 .pe-horario-modificado {
     color: #b91c1c !important;
     background-color: #fee2e2 !important;
-    animation: pulso-modificado 2s ease-in-out 3;
     position: relative;
 }
 
