@@ -230,71 +230,77 @@ function exportToPDF() {
         categoriasInfo[cat].rows.push(inscripto);
     });
 
-    // Generar tabla
+    // Generar tabla única con todas las categorías
     let startY = 30;
     const pageWidth = doc.internal.pageSize.getWidth();
-    const tableWidth = 240; // Ancho total de la tabla
+    const tableWidth = 260; // Ancho total de la tabla
     const marginLeft = (pageWidth - tableWidth) / 2; // Centrar
     
-    Object.keys(categoriasInfo).forEach((categoria) => {
+    // Preparar datos completos con separadores de categoría
+    const allTableData = [];
+    
+    Object.keys(categoriasInfo).forEach((categoria, index) => {
         const info = categoriasInfo[categoria];
-
-        // Tabla de inscriptos con header de categoría integrado
-        const tableData = info.rows.map(inscripto => [
-            inscripto.numero || '-',
-            inscripto.nombre,
-            inscripto.marca ? inscripto.marca.toUpperCase() : '-',
-            inscripto.vehiculo,
-            inscripto.categoria
-        ]);
-
-        doc.autoTable({
-            startY: startY,
-            head: [
-                [{ 
-                    content: `CLASE: ${categoria} - INSCRIPTOS: ${info.count}`, 
-                    colSpan: 5, 
-                    styles: { 
-                        halign: 'left', 
-                        fillColor: [30, 64, 175],
-                        textColor: [255, 255, 255],
-                        fontStyle: 'bold',
-                        fontSize: 11
-                    } 
-                }],
-                ['Nº', 'Piloto', 'Marca', 'Vehículo', 'Categoría']
-            ],
-            body: tableData,
-            theme: 'striped',
-            headStyles: {
-                fillColor: [30, 64, 175],
-                textColor: [255, 255, 255],
-                fontStyle: 'bold',
-                fontSize: 10
-            },
-            bodyStyles: {
-                fontSize: 9
-            },
-            alternateRowStyles: {
-                fillColor: [243, 244, 246]
-            },
-            margin: { left: marginLeft, right: marginLeft },
-            tableWidth: tableWidth,
-            columnStyles: {
-                0: { cellWidth: 20, halign: 'center' },
-                1: { cellWidth: 60 },
-                2: { cellWidth: 50, halign: 'center' },
-                3: { cellWidth: 60 },
-                4: { cellWidth: 50, halign: 'center', textColor: [220, 38, 38], fontStyle: 'bold' }
+        
+        // Agregar fila de categoría
+        allTableData.push([
+            { 
+                content: `CLASE: ${categoria} - INSCRIPTOS: ${info.count}`, 
+                colSpan: 4, 
+                styles: { 
+                    halign: 'center', 
+                    fillColor: [30, 64, 175],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 11
+                } 
             }
+        ]);
+        
+        // Agregar filas de inscriptos
+        info.rows.forEach(inscripto => {
+            allTableData.push([
+                inscripto.numero || '-',
+                inscripto.nombre,
+                inscripto.vehiculo,
+                inscripto.categoria
+            ]);
         });
+    });
 
-        startY = doc.lastAutoTable.finalY + 8;
-
-        // Verificar si necesitamos nueva página
-        if (startY > doc.internal.pageSize.getHeight() - 30) {
-            doc.addPage();
-            startY = 20;
+    // Crear tabla única
+    doc.autoTable({
+        startY: startY,
+        head: [
+            ['Nº', 'Piloto', 'Vehículo', 'Categoría']
+        ],
+        body: allTableData,
+        theme: 'grid', // 'grid' agrega bordes a todas las celdas
+        headStyles: {
+            fillColor: [30, 64, 175],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 10,
+            halign: 'center',
+            lineWidth: 0.3, // grosor del borde
+            lineColor: [0, 0, 0] // color del borde (negro)
+        },
+        bodyStyles: {
+            fontSize: 9,
+            halign: 'center',
+            lineWidth: 0.3, // grosor del borde del body
+            lineColor: [150, 150, 150] // color del borde (gris)
+        },
+        alternateRowStyles: {
+            fillColor: [243, 244, 246]
+        },
+        margin: { left: marginLeft, right: marginLeft },
+        tableWidth: tableWidth,
+        columnStyles: {
+            0: { cellWidth: 25, halign: 'center' }, // Nº - pequeña
+            1: { cellWidth: 80, halign: 'center' }, // Piloto - más ancha
+            2: { cellWidth: 110, halign: 'center' }, // Vehículo - más ancha
+            3: { cellWidth: 45, halign: 'center', textColor: [220, 38, 38], fontStyle: 'bold' } // Categoría - pequeña
         }
     });
 

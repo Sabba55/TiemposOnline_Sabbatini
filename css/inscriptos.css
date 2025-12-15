@@ -221,7 +221,7 @@ td:first-child {
 
 /* Logo de marca */
 .marca-logo {
-    height: 22px;
+    height: 24px;
     width: auto;
     max-width: 80px;
     object-fit: contain;
