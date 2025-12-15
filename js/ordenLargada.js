@@ -133,6 +133,22 @@ function obtenerHorarioMasTemplano(piloto, columnasSS) {
     return minTiempo;
 }
 
+function formatearTiempoRestante(minutos) {
+    if (minutos < 60) {
+        return `${minutos} minutos`;
+    }
+    
+    const horas = Math.floor(minutos / 60);
+    const minutosRestantes = minutos % 60;
+    
+    if (minutosRestantes === 0) {
+        return horas === 1 ? `1 hora` : `${horas} horas`;
+    }
+    
+    const textoHoras = horas === 1 ? '1 hora' : `${horas} horas`;
+    return `${textoHoras} y ${minutosRestantes} minutos`;
+}
+
 function encontrarProximaLargada() {
     if (ordenLargadaData.length === 0) return null;
     
@@ -196,10 +212,10 @@ function actualizarContadorProximaLargada() {
         estadoTexto = `Próxima largada en ${minutosRestantes} min ${segundosRestantes}s`;
         estadoClass = 'urgente';
     } else if (minutosRestantes <= 15) {
-        estadoTexto = `Próxima largada en ${minutosRestantes} minutos`;
+        estadoTexto = `Próxima largada en ${formatearTiempoRestante(minutosRestantes)}`;
         estadoClass = 'cercana';
     } else {
-        estadoTexto = `Próxima largada en ${minutosRestantes} minutos`;
+        estadoTexto = `Próxima largada en ${formatearTiempoRestante(minutosRestantes)}`;
         estadoClass = 'normal';
     }
     
@@ -219,8 +235,12 @@ function actualizarContadorProximaLargada() {
                         <span class="valor">${proximaLargada.categoria}</span>
                     </div>
                     <div class="info-item">
+                        <span class="label">PE:</span>
+                        <span class="valor">${numeroSS}</span>
+                    </div>
+                    <div class="info-item">
                         <span class="label">Horario:</span>
-                        <span class="valor horario">${proximaLargada.horario} (PE ${numeroSS})</span>
+                        <span class="valor horario">${proximaLargada.horario}</span>
                     </div>
                 </div>
             </div>
@@ -242,6 +262,17 @@ function renderOrdenLargada() {
         const tiempoB = obtenerHorarioMasTemplano(b, columnasSS);
         return tiempoA - tiempoB;
     });
+
+    // Obtener categorías únicas y asignar colores
+    const categoriasUnicas = [...new Set(datosOrdenados.map(p => p.Categoria || p.CATEGORIA || ''))];
+    const categoriasColor = {};
+    categoriasUnicas.forEach((cat, index) => {
+        categoriasColor[cat] = (index % 8) + 1;
+    });
+
+    // Obtener hora actual para comparar
+    const ahora = new Date();
+    const tiempoActualEnMinutos = ahora.getHours() * 60 + ahora.getMinutes();
 
     let html = `
         <div class="category-section">
@@ -268,12 +299,13 @@ function renderOrdenLargada() {
     datosOrdenados.forEach((piloto, index) => {
         const nombre = piloto.Nombre || piloto.NOMBRE || '';
         const categoria = piloto.Categoria || piloto.CATEGORIA || '';
+        const colorIndex = categoriasColor[categoria];
 
         html += `
             <tr>
-                <td><strong>${index + 1}</strong></td>
-                <td><strong>${nombre}</strong></td>
-                <td>${categoria}</td>
+                <td class="categoria-col category-color-${colorIndex}"><span class="numero-badge">${index + 1}</span></td>
+                <td class="categoria-col category-color-${colorIndex}"><strong>${nombre}</strong></td>
+                <td class="categoria-col category-color-${colorIndex}"><strong>${categoria}</strong></td>
         `;
 
         columnasSS.forEach(ss => {
@@ -281,7 +313,13 @@ function renderOrdenLargada() {
             const claveHorario = `${nombre}_${ss}`;
             
             const fueModificado = horariosModificados.has(claveHorario);
-            const claseExtra = fueModificado ? ' pe-horario-modificado' : '';
+            let claseExtra = fueModificado ? ' pe-horario-modificado' : '';
+            
+            // Verificar si está largando ahora
+            const tiempoLargada = convertirHorarioAMinutos(horario);
+            if (tiempoLargada !== Infinity && tiempoLargada <= tiempoActualEnMinutos) {
+                claseExtra += ' pe-horario-largado';
+            }
             
             html += `<td class="pe-horario-cell${claseExtra}">${horario}</td>`;
         });

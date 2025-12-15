@@ -316,8 +316,70 @@ tbody tr:nth-child(even) td {
     background-color: #fff;
 }
 
-tr:hover td {
+/* Hover mejorado - solo afecta celdas que NO tienen color de categoría */
+tr:hover td:not(.categoria-col) {
     background-color: #dbeafe !important;
+}
+
+/* Las celdas con color de categoría mantienen un hover más sutil */
+tr:hover td.categoria-col {
+    filter: brightness(0.95);
+}
+
+/* Badge para números */
+.numero-badge {
+    display: inline-block;
+    color: white;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+/* ============================
+   COLORES DE CATEGORÍA
+============================ */
+.category-color-1 {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+    color: white !important;
+}
+
+.category-color-2 {
+    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%) !important;
+    color: white !important;
+}
+
+.category-color-3 {
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+    color: white !important;
+}
+
+.category-color-4 {
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
+    color: white !important;
+}
+
+.category-color-5 {
+    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%) !important;
+    color: white !important;
+}
+
+.category-color-6 {
+    background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%) !important;
+    color: white !important;
+}
+
+.category-color-7 {
+    background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%) !important;
+    color: white !important;
+}
+
+.category-color-8 {
+    background: linear-gradient(135deg, #fb7185 0%, #f43f5e 100%) !important;
+    color: white !important;
+}
+
+/* Asegurar que el badge también sea visible en fondos de color */
+.categoria-col .numero-badge {
+    color: rgb(255, 255, 255) !important;
 }
 
 /* Estilos para columnas PE (Orden de Largada) */
@@ -333,6 +395,14 @@ tr:hover td {
     color: #b91c1c !important;
     background-color: #fee2e2 !important;
     position: relative;
+}
+
+/* Estilo para horarios que ya largaron (verde) */
+.pe-horario-largado {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+    color: white !important;
+    font-weight: 900 !important;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.5) !important;
 }
 
 /* Animación de pulso para resaltar el cambio */
@@ -355,6 +425,11 @@ tr:hover .pe-horario-cell {
 tr:hover .pe-horario-modificado {
     color: #991b1b !important;
     background-color: #fecaca !important;
+}
+
+tr:hover .pe-horario-largado {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%) !important;
+    color: white !important;
 }
 
 /* Mensaje de error */
