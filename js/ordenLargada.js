@@ -1,8 +1,6 @@
 const ORDENLARGADA_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1217848665&single=true&output=csv';
 
 let ordenLargadaData = [];
-let ordenLargadaDataAnterior = [];
-let horariosModificados = new Set();
 let intervaloContador = null;
 
 function parseCSV(csv) {
@@ -31,61 +29,16 @@ function parseCSV(csv) {
     return data;
 }
 
-function detectarCambiosHorarios(datosNuevos, datosAnteriores) {
-    const cambios = new Set();
-    
-    if (datosAnteriores.length === 0) {
-        return cambios;
-    }
-    
-    const columnasSS = obtenerColumnasSS();
-    
-    datosNuevos.forEach(pilotoNuevo => {
-        const nombreNuevo = pilotoNuevo.Nombre || pilotoNuevo.NOMBRE || '';
-        
-        const pilotoAnterior = datosAnteriores.find(p => {
-            const nombreAnterior = p.Nombre || p.NOMBRE || '';
-            return nombreAnterior === nombreNuevo;
-        });
-        
-        if (pilotoAnterior) {
-            columnasSS.forEach(ss => {
-                const horarioNuevo = pilotoNuevo[ss] || '-';
-                const horarioAnterior = pilotoAnterior[ss] || '-';
-                
-                if (horarioNuevo !== horarioAnterior) {
-                    const claveHorario = `${nombreNuevo}_${ss}`;
-                    cambios.add(claveHorario);
-                }
-            });
-        }
-    });
-    
-    return cambios;
-}
-
 async function loadData() {
     try {
         const response = await fetch(ORDENLARGADA_URL);
         const text = await response.text();
         
-        const datosNuevos = parseCSV(text);
-        
-        horariosModificados = detectarCambiosHorarios(datosNuevos, ordenLargadaData);
-        
-        ordenLargadaDataAnterior = [...ordenLargadaData];
-        ordenLargadaData = datosNuevos;
+        ordenLargadaData = parseCSV(text);
         
         renderOrdenLargada();
         actualizarContadorProximaLargada();
         updateLastUpdate();
-        
-        if (horariosModificados.size > 0) {
-            setTimeout(() => {
-                horariosModificados.clear();
-                renderOrdenLargada();
-            }, 60000);
-        }
     } catch (error) {
         document.getElementById('content').innerHTML = 
             '<div class="error">⚠️ Error al cargar los datos. Por favor, verifica que la hoja de cálculo esté publicada correctamente.</div>';
@@ -270,7 +223,7 @@ function renderOrdenLargada() {
         categoriasColor[cat] = (index % 8) + 1;
     });
 
-    // Obtener hora actual para comparar
+    // Obtener hora actual para comparar (minuto exacto)
     const ahora = new Date();
     const tiempoActualEnMinutos = ahora.getHours() * 60 + ahora.getMinutes();
 
@@ -310,15 +263,12 @@ function renderOrdenLargada() {
 
         columnasSS.forEach(ss => {
             const horario = piloto[ss] || '-';
-            const claveHorario = `${nombre}_${ss}`;
+            let claseExtra = '';
             
-            const fueModificado = horariosModificados.has(claveHorario);
-            let claseExtra = fueModificado ? ' pe-horario-modificado' : '';
-            
-            // Verificar si está largando ahora
+            // Verificar si está largando AHORA (en el minuto exacto)
             const tiempoLargada = convertirHorarioAMinutos(horario);
-            if (tiempoLargada !== Infinity && tiempoLargada <= tiempoActualEnMinutos) {
-                claseExtra += ' pe-horario-largado';
+            if (tiempoLargada !== Infinity && tiempoLargada === tiempoActualEnMinutos) {
+                claseExtra = ' pe-horario-largando';
             }
             
             html += `<td class="pe-horario-cell${claseExtra}">${horario}</td>`;
@@ -342,9 +292,8 @@ function renderOrdenLargada() {
 function updateLastUpdate() {
     const now = new Date();
     const timeStr = now.toLocaleTimeString('es-AR');
-    const cambiosTexto = horariosModificados.size > 0 ? ` - ⚠️ ${horariosModificados.size} horario(s) modificado(s)` : '';
     document.getElementById('lastUpdate').textContent = 
-        `🔄 Última actualización: ${timeStr}${cambiosTexto}`;
+        `🔄 Última actualización: ${timeStr}`;
 }
 
 // Inicializar
