@@ -156,7 +156,7 @@ tr.category-header td {
     text-align: left;
     border: none !important;
     text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
-    background: transparent !important;   /* FIX CRÍTICO */
+    background: transparent !important;
 }
 
 tr.category-header .category-count {
@@ -188,16 +188,45 @@ tbody tr:last-child td {
 
 /* Rayado en filas normales */
 tbody tr:nth-child(odd):not(.category-header) td {
-    background-color: #f9fafb;
+    background-color: #f3f4f6 !important;
 }
 
 tbody tr:nth-child(even):not(.category-header) td {
-    background-color: #fff;
+    background-color: #ffffff !important;
 }
 
-/* Columna de número */
+/* Hover */
+tbody tr:not(.category-header):hover td {
+    background-color: #dbeafe !important;
+}
+
+/* Columna de número con badge */
 td:first-child {
     color: #1e40af;
+}
+
+/* Badge para números */
+.numero-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 15px;
+    min-width: 50px;
+    box-shadow: 0 2px 8px rgba(30, 64, 175, 0.3);
+    text-align: center;
+}
+
+/* Logo de marca */
+.marca-logo {
+    height: 22px;
+    width: auto;
+    max-width: 80px;
+    object-fit: contain;
+    vertical-align: middle;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 /* Columna de categoría - texto rojo */
@@ -221,7 +250,6 @@ td:last-child {
     text-align: center;
     color: #64748b;
     font-size: 14px;
-    margin-top: 25px;
     padding: 15px;
     background: #f1f5f9;
     border-radius: 8px;
@@ -276,16 +304,39 @@ tr[class*="category-color-"] {
     background-size: cover !important;
 }
 
-/* Rayado en filas normales (AHORA IGUAL QUE TRAMO.CSS) */
-tbody tr:nth-child(odd):not(.category-header) td {
-    background-color: #f3f4f6 !important; /* gris claro */
+/* ============================
+   EXPORTAR PDF
+============================ */
+.export-container {
+    text-align: center;
+    padding: 20px 0;
 }
 
-tbody tr:nth-child(even):not(.category-header) td {
-    background-color: #ffffff !important; /* blanco */
+.btn-export-pdf {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    color: white;
+    padding: 14px 28px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-/* Hover (idéntico al archivo nuevo) */
-tbody tr:not(.category-header):hover td {
-    background-color: #dbeafe !important;
+.btn-export-pdf:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.5);
+    background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+}
+
+.btn-export-pdf:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
 }

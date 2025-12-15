@@ -26,10 +26,25 @@ function parseCSV(csv) {
         const vehiculo = obj.VEHICULO || '';
         const categoria = obj.CATEGORIA || '';
         
+        // Extraer marca desde la primera palabra del vehículo
+        let marca = '';
+        if (vehiculo) {
+            const vehiculoLower = vehiculo.toLowerCase();
+            
+            // Excepción especial: si contiene "skoda" y "rs", usar "skodars"
+            if (vehiculoLower.includes('skoda') && vehiculoLower.includes('rs')) {
+                marca = 'skodars';
+            } else {
+                // Comportamiento normal: primera palabra en minúsculas
+                marca = vehiculo.split(' ')[0].toLowerCase();
+            }
+        }
+        
         if (nombre && categoria) {
             data.push({
                 numero: numero,
                 nombre: nombre,
+                marca: marca,
                 vehiculo: vehiculo,
                 categoria: categoria
             });
@@ -87,15 +102,11 @@ function renderInscriptos() {
         const cat = inscripto.categoria;
 
         if (!categoriasInfo[cat]) {
-
-            // ← ← ← **FIX APLICADO AQUÍ**
             categoriasInfo[cat] = {
                 count: 1,
                 colorIndex: (colorIndexCounter % 8) + 1
             };
             colorIndexCounter++;
-            // ← ← ← **FIN DEL FIX**
-
         } else {
             categoriasInfo[cat].count++;
         }
@@ -109,6 +120,7 @@ function renderInscriptos() {
                         <tr>
                             <th>Nº</th>
                             <th>Piloto</th>
+                            <th>Marca</th>
                             <th>Vehículo</th>
                             <th>Categoría</th>
                         </tr>
@@ -125,7 +137,7 @@ function renderInscriptos() {
 
             html += `
                 <tr class="category-header category-color-${info.colorIndex}">
-                    <td colspan="4">
+                    <td colspan="5">
                         <span>CLASE: ${categoriaActual}</span>
                         <span class="category-count">INSCRIPTOS: ${info.count}</span>
                     </td>
@@ -133,10 +145,21 @@ function renderInscriptos() {
             `;
         }
 
+        // Badge para número
+        const numeroBadge = inscripto.numero 
+            ? `<span class="numero-badge">${inscripto.numero}</span>` 
+            : '-';
+
+        // Logo de marca
+        const logoMarca = inscripto.marca 
+            ? `<img src="/assets/icon/${inscripto.marca}.png" alt="${inscripto.marca}" class="marca-logo">` 
+            : '-';
+
         html += `
             <tr>
-                <td>${inscripto.numero}</td>
+                <td>${numeroBadge}</td>
                 <td>${inscripto.nombre}</td>
+                <td>${logoMarca}</td>
                 <td>${inscripto.vehiculo}</td>
                 <td>${inscripto.categoria}</td>
             </tr>
@@ -167,6 +190,141 @@ function updateLastUpdate() {
     lastUpdateElement.textContent = 
         `🔄 Última actualización: ${dateStr} - ${timeStr}`;
 }
+
+/* ==========================
+   EXPORTAR A PDF
+========================== */
+function exportToPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4'); // Landscape para más espacio
+
+    // Título
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    doc.text('INSCRIPTOS PROVISORIOS', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+
+    // Fecha
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('es-AR');
+    const timeStr = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Generado: ${dateStr} - ${timeStr}`, doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
+
+    // Preparar datos por categoría
+    const categoriasInfo = {};
+    let colorIndexCounter = 0;
+    
+    inscriptosData.forEach(inscripto => {
+        const cat = inscripto.categoria;
+        if (!categoriasInfo[cat]) {
+            categoriasInfo[cat] = {
+                count: 1,
+                colorIndex: (colorIndexCounter % 8) + 1,
+                rows: []
+            };
+            colorIndexCounter++;
+        } else {
+            categoriasInfo[cat].count++;
+        }
+        categoriasInfo[cat].rows.push(inscripto);
+    });
+
+    // Generar tabla
+    let startY = 30;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const tableWidth = 240; // Ancho total de la tabla
+    const marginLeft = (pageWidth - tableWidth) / 2; // Centrar
+    
+    Object.keys(categoriasInfo).forEach((categoria) => {
+        const info = categoriasInfo[categoria];
+
+        // Tabla de inscriptos con header de categoría integrado
+        const tableData = info.rows.map(inscripto => [
+            inscripto.numero || '-',
+            inscripto.nombre,
+            inscripto.marca ? inscripto.marca.toUpperCase() : '-',
+            inscripto.vehiculo,
+            inscripto.categoria
+        ]);
+
+        doc.autoTable({
+            startY: startY,
+            head: [
+                [{ 
+                    content: `CLASE: ${categoria} - INSCRIPTOS: ${info.count}`, 
+                    colSpan: 5, 
+                    styles: { 
+                        halign: 'left', 
+                        fillColor: [30, 64, 175],
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold',
+                        fontSize: 11
+                    } 
+                }],
+                ['Nº', 'Piloto', 'Marca', 'Vehículo', 'Categoría']
+            ],
+            body: tableData,
+            theme: 'striped',
+            headStyles: {
+                fillColor: [30, 64, 175],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 10
+            },
+            bodyStyles: {
+                fontSize: 9
+            },
+            alternateRowStyles: {
+                fillColor: [243, 244, 246]
+            },
+            margin: { left: marginLeft, right: marginLeft },
+            tableWidth: tableWidth,
+            columnStyles: {
+                0: { cellWidth: 20, halign: 'center' },
+                1: { cellWidth: 60 },
+                2: { cellWidth: 50, halign: 'center' },
+                3: { cellWidth: 60 },
+                4: { cellWidth: 50, halign: 'center', textColor: [220, 38, 38], fontStyle: 'bold' }
+            }
+        });
+
+        startY = doc.lastAutoTable.finalY + 8;
+
+        // Verificar si necesitamos nueva página
+        if (startY > doc.internal.pageSize.getHeight() - 30) {
+            doc.addPage();
+            startY = 20;
+        }
+    });
+
+    // Footer en todas las páginas
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(
+            `Total de pilotos: ${inscriptosData.length} - Página ${i} de ${totalPages}`,
+            doc.internal.pageSize.getWidth() / 2,
+            doc.internal.pageSize.getHeight() - 10,
+            { align: 'center' }
+        );
+    }
+
+    // Guardar PDF
+    doc.save(`inscriptos_${dateStr.replace(/\//g, '-')}.pdf`);
+}
+
+/* ==========================
+   EVENT LISTENERS
+========================== */
+document.addEventListener('DOMContentLoaded', function() {
+    const btnExportPDF = document.getElementById('btnExportPDF');
+    if (btnExportPDF) {
+        btnExportPDF.addEventListener('click', exportToPDF);
+    }
+});
 
 /* ==========================
    EJECUCIÓN INICIAL
