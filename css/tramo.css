@@ -110,6 +110,71 @@ h1 {
     60%, 100% { content: '...'; }
 }
 
+/* NUEVA ESTRUCTURA DE CATEGORÍAS */
+.categoria-completa {
+    margin-bottom: 3rem;
+}
+
+.categoria-titulo {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    color: white;
+    padding: 14px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 20px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    margin-bottom: 10px;
+}
+
+.d-flex {
+    display: flex;
+}
+
+.justify-content-between {
+    justify-content: space-between;
+}
+
+.gap-4 {
+    gap: 1.5rem;
+}
+
+.flex-grow-1 {
+    flex: 1;
+}
+
+.mb-5 {
+    margin-bottom: 3rem;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.subtitulo-seccion {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    color: white;
+    padding: 12px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 12px;
+    border-radius: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tabla-pe-container {
+    flex: 0 0 calc(45% - 12px);
+    min-width: 0;
+}
+
+.tabla-general-container {
+    flex: 0 0 calc(55% - 12px);
+    min-width: 0;
+}
+
 .tables-container {
     display: flex;
     gap: 30px;
@@ -171,7 +236,7 @@ table {
     min-width: 500px;
     border-collapse: collapse;
     border: 2px solid #1e40af;
-    border-radius: 12px;
+    border-radius: 1px;
     overflow: hidden;
 }
 
@@ -285,6 +350,7 @@ tr:hover td {
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 2px;
 }
 
 .position-change {
@@ -306,58 +372,6 @@ tr:hover td {
 
 .position-down {
     color: #dc2626;
-}
-
-/* Media Queries para Responsive */
-@media (max-width: 1024px) {
-    .tables-container {
-        gap: 20px;
-    }
-}
-
-@media (max-width: 768px) {
-    body {
-        padding: 5px;
-    }
-
-    .container {
-        padding: 10px;
-        margin: 5px auto;
-        border-radius: 8px;
-    }
-
-    .section-title {
-        font-size: 14px;
-        padding: 10px;
-        margin-bottom: 12px;
-    }
-
-    .category-title {
-        font-size: 12px;
-        padding: 8px;
-    }
-
-    .category-section {
-        margin-bottom: 20px;
-    }
-
-    .tables-container {
-        gap: 15px;
-    }
-
-    .last-update {
-        font-size: 10px;
-        padding: 10px;
-    }
-    
-    .position-change {
-        font-size: 8px;
-        padding: 1px 3px;
-    }
-    
-    .position-change i {
-        font-size: 7px;
-    }
 }
 
 /* Estilos para columnas PE (Orden de Largada) */

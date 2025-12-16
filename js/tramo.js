@@ -190,16 +190,15 @@ function calcularTiempoDNF(peorTiempoCategoria) {
     return peorTiempoCategoria + 60;
 }
 
-// NUEVA FUNCIÓN: Calcular posiciones del PE anterior
 function calcularPosicionesAnterior(categoria, numeroPEInt) {
-    if (numeroPEInt <= 1) return {}; // No hay PE anterior
+    if (numeroPEInt <= 1) return {};
     
     const pilotosAnterior = datosPilotos
         .filter(p => (p.Categoria || p.CATEGORIA) === categoria)
         .map(p => {
             let totalSegundos = 0;
             
-            for (let i = 1; i < numeroPEInt; i++) { // Hasta el PE anterior
+            for (let i = 1; i < numeroPEInt; i++) {
                 const columnaSS = `SS${i}`;
                 const tiempo = p[columnaSS];
                 
@@ -242,7 +241,6 @@ function calcularPosicionesAnterior(categoria, numeroPEInt) {
         .filter(p => p !== null)
         .sort((a, b) => a.totalConPenalizacion - b.totalConPenalizacion);
     
-    // Crear mapa de nombre -> posición
     const posiciones = {};
     pilotosAnterior.forEach((piloto, indice) => {
         posiciones[piloto.nombre] = indice + 1;
@@ -302,11 +300,11 @@ function renderizarResultados() {
     
     const categorias = [...new Set(datosPilotos.map(p => p.Categoria || p.CATEGORIA))].filter(c => c).sort();
 
-    let htmlPE = '<div class="section-title">Clasificación P.E.</div>';
-    let htmlGeneral = '<div class="section-title">Clasificación General</div>';
+    let htmlCompleto = '';
 
-    // Clasificación PE (sin cambios)
+    // Procesar cada categoría
     categorias.forEach(categoria => {
+        // Datos PE
         const pilotosCategoria = datosPilotos
             .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[columnaSSActual])
             .map(p => {
@@ -325,67 +323,7 @@ function renderizarResultados() {
             })
             .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
 
-        if (pilotosCategoria.length === 0) return;
-
-        const peorTiempoCategoria = obtenerPeorTiempoCategoria(pilotosCategoria);
-        
-        pilotosCategoria.forEach(piloto => {
-            if (piloto.tieneDNF) {
-                piloto.tiempoSegundos = calcularTiempoDNF(peorTiempoCategoria);
-                piloto.tiempo = segundosATiempo(piloto.tiempoSegundos);
-            }
-        });
-        
-        pilotosCategoria.sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
-
-        const mejorTiempo = pilotosCategoria[0].tiempoSegundos;
-
-        htmlPE += `
-            <div class="category-section">
-                <div class="category-title">${categoria}</div>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Pos</th>
-                                <th>Piloto</th>
-                                <th>Tiempo</th>
-                                <th>Dif. 1°</th>
-                                <th>PROM</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-        `;
-
-        pilotosCategoria.forEach((piloto, indice) => {
-            const diferencia = piloto.tiempoSegundos - mejorTiempo;
-            const claseFilaDNF = piloto.tieneDNF ? 'fila-dnf' : '';
-            const claseFila = indice === 0 ? 'pos-1' : claseFilaDNF;
-            const velocidadProm = calcularVelocidadPromedio(piloto.tiempoSegundos, distanciaTramo);
-            const tiempoMostrar = piloto.tieneDNF ? 'DNF' : piloto.tiempo;
-
-            htmlPE += `
-                <tr class="${claseFila}">
-                    <td><strong>${indice + 1}</strong></td>
-                    <td>${piloto.nombre}</td>
-                    <td>${tiempoMostrar}</td>
-                    <td>${formatearDiferencia(diferencia)}</td>
-                    <td>${velocidadProm}</td>
-                </tr>
-            `;
-        });
-
-        htmlPE += `
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `;
-    });
-
-    // Clasificación General (CON indicadores de cambio de posición)
-    categorias.forEach(categoria => {
-        // Obtener posiciones del PE anterior
+        // Datos General
         const posicionesAnterior = calcularPosicionesAnterior(categoria, numeroPEInt);
         
         const pilotosGeneralCategoria = datosPilotos
@@ -442,90 +380,155 @@ function renderizarResultados() {
             .filter(p => p !== null)
             .sort((a, b) => a.totalConPenalizacion - b.totalConPenalizacion);
 
-        if (pilotosGeneralCategoria.length === 0) return;
+        if (pilotosCategoria.length === 0 && pilotosGeneralCategoria.length === 0) return;
 
-        const mejorTotal = pilotosGeneralCategoria[0].totalConPenalizacion;
+        // Calcular DNF para PE
+        const peorTiempoCategoria = obtenerPeorTiempoCategoria(pilotosCategoria);
+        pilotosCategoria.forEach(piloto => {
+            if (piloto.tieneDNF) {
+                piloto.tiempoSegundos = calcularTiempoDNF(peorTiempoCategoria);
+                piloto.tiempo = segundosATiempo(piloto.tiempoSegundos);
+            }
+        });
+        pilotosCategoria.sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
 
-        htmlGeneral += `
-            <div class="category-section">
-                <div class="category-title">${categoria}</div>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Pos</th>
-                                <th>Piloto</th>
-                                <th>Tiempo</th>
-                                <th>Penaliz</th>
-                                <th>T. Total</th>
-                                <th>Dif. 1°</th>
-                                <th>Dif. Ant.</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+        const mejorTiempo = pilotosCategoria.length > 0 ? pilotosCategoria[0].tiempoSegundos : 0;
+        const mejorTotal = pilotosGeneralCategoria.length > 0 ? pilotosGeneralCategoria[0].totalConPenalizacion : 0;
+
+        // Construir HTML para esta categoría
+        htmlCompleto += `
+            <div class="categoria-completa mb-5">
+                <h3 class="text-center categoria-titulo">${categoria}</h3>
+                <div class="d-flex justify-content-between gap-4">
+                    
+                    <!-- CLASIFICACIÓN P.E. -->
+                    <div class="tabla-pe-container flex-grow-1">
+                        <h4 class="subtitulo-seccion text-center">Clasificación P.E.</h4>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Pos</th>
+                                        <th>Piloto</th>
+                                        <th>Tiempo</th>
+                                        <th>Dif. 1°</th>
+                                        <th>PROM</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
         `;
 
-        pilotosGeneralCategoria.forEach((piloto, indice) => {
-            const posicionActual = indice + 1;
-            const posicionAnterior = posicionesAnterior[piloto.nombre];
-            
-            // Calcular cambio de posición
-            let indicadorHTML = '';
-            if (posicionAnterior && numeroPEInt > 1) {
-                const cambio = posicionAnterior - posicionActual;
-                if (cambio > 0) {
-                    // Subió posiciones
-                    indicadorHTML = `<div class="position-change position-up"><i class="fa-solid fa-arrow-up"></i> +${cambio}</div>`;
-                } else if (cambio < 0) {
-                    // Bajó posiciones
-                    indicadorHTML = `<div class="position-change position-down"><i class="fa-solid fa-arrow-down"></i> ${cambio}</div>`;
-                }
-                // Si cambio === 0, no se muestra nada
-            }
-            
-            const dif1 = piloto.totalConPenalizacion - mejorTotal;
-            const difAnt = indice > 0 ? piloto.totalConPenalizacion - pilotosGeneralCategoria[indice - 1].totalConPenalizacion : 0;
-            const claseFila = indice === 0 ? 'pos-1' : (piloto.tieneDNF ? 'fila-dnf' : '');
-            
-            const tiempoFormateado = segundosATiempo(piloto.totalSegundos);
-            const penalizFormateada = piloto.penalizacionSegundos > 0 ? segundosATiempo(piloto.penalizacionSegundos) : '-';
-            const totalFormateado = segundosATiempo(piloto.totalConPenalizacion);
-            const clasePenaliz = piloto.penalizacionSegundos > 0 ? 'penalizacion-activa' : '';
-
-            htmlGeneral += `
-                <tr class="${claseFila}">
-                    <td>
-                        <div class="position-cell">
-                            <strong>${posicionActual}</strong>
-                            ${indicadorHTML}
-                        </div>
-                    </td>
-                    <td>${piloto.nombre}</td>
-                    <td>${tiempoFormateado}</td>
-                    <td class="${clasePenaliz}">${penalizFormateada}</td>
-                    <td>${totalFormateado}</td>
-                    <td>${formatearDiferencia(dif1)}</td>
-                    <td>${formatearDiferencia(difAnt)}</td>
+        if (pilotosCategoria.length === 0) {
+            htmlCompleto += `
+                <tr>
+                    <td colspan="5" class="no-data">No hay tiempos registrados</td>
                 </tr>
             `;
-        });
+        } else {
+            pilotosCategoria.forEach((piloto, indice) => {
+                const diferencia = piloto.tiempoSegundos - mejorTiempo;
+                const claseFilaDNF = piloto.tieneDNF ? 'fila-dnf' : '';
+                const claseFila = indice === 0 ? 'pos-1' : claseFilaDNF;
+                const velocidadProm = calcularVelocidadPromedio(piloto.tiempoSegundos, distanciaTramo);
+                const tiempoMostrar = piloto.tieneDNF ? 'DNF' : piloto.tiempo;
 
-        htmlGeneral += `
-                        </tbody>
-                    </table>
+                htmlCompleto += `
+                    <tr class="${claseFila}">
+                        <td><strong>${indice + 1}</strong></td>
+                        <td>${piloto.nombre}</td>
+                        <td>${tiempoMostrar}</td>
+                        <td>${formatearDiferencia(diferencia)}</td>
+                        <td>${velocidadProm}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        htmlCompleto += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- CLASIFICACIÓN GENERAL -->
+                    <div class="tabla-general-container flex-grow-1">
+                        <h4 class="text-center subtitulo-seccion">Clasificación General</h4>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Pos</th>
+                                        <th>Piloto</th>
+                                        <th>Tiempo</th>
+                                        <th>Penaliz</th>
+                                        <th>T. Total</th>
+                                        <th>Dif. 1°</th>
+                                        <th>Dif. Ant.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+        `;
+
+        if (pilotosGeneralCategoria.length === 0) {
+            htmlCompleto += `
+                <tr>
+                    <td colspan="7" class="no-data">No hay pilotos que completen todos los tramos</td>
+                </tr>
+            `;
+        } else {
+            pilotosGeneralCategoria.forEach((piloto, indice) => {
+                const posicionActual = indice + 1;
+                const posicionAnterior = posicionesAnterior[piloto.nombre];
+                
+                let indicadorHTML = '';
+                if (posicionAnterior && numeroPEInt > 1) {
+                    const cambio = posicionAnterior - posicionActual;
+                    if (cambio > 0) {
+                        indicadorHTML = `<div class="position-change position-up"><i class="fa-solid fa-arrow-up"></i> +${cambio}</div>`;
+                    } else if (cambio < 0) {
+                        indicadorHTML = `<div class="position-change position-down"><i class="fa-solid fa-arrow-down"></i> ${cambio}</div>`;
+                    }
+                }
+                
+                const dif1 = piloto.totalConPenalizacion - mejorTotal;
+                const difAnt = indice > 0 ? piloto.totalConPenalizacion - pilotosGeneralCategoria[indice - 1].totalConPenalizacion : 0;
+                const claseFila = indice === 0 ? 'pos-1' : (piloto.tieneDNF ? 'fila-dnf' : '');
+                
+                const tiempoFormateado = segundosATiempo(piloto.totalSegundos);
+                const penalizFormateada = piloto.penalizacionSegundos > 0 ? segundosATiempo(piloto.penalizacionSegundos) : '-';
+                const totalFormateado = segundosATiempo(piloto.totalConPenalizacion);
+                const clasePenaliz = piloto.penalizacionSegundos > 0 ? 'penalizacion-activa' : '';
+
+                htmlCompleto += `
+                    <tr class="${claseFila}">
+                        <td>
+                            <div class="position-cell">
+                                <strong>${posicionActual}</strong>
+                                ${indicadorHTML}
+                            </div>
+                        </td>
+                        <td>${piloto.nombre}</td>
+                        <td>${tiempoFormateado}</td>
+                        <td class="${clasePenaliz}">${penalizFormateada}</td>
+                        <td>${totalFormateado}</td>
+                        <td>${formatearDiferencia(dif1)}</td>
+                        <td>${formatearDiferencia(difAnt)}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        htmlCompleto += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
     });
 
-    const html = `
-        <div class="tables-container">
-            <div class="table-column">${htmlPE}</div>
-            <div class="table-column">${htmlGeneral}</div>
-        </div>
-    `;
-
-    document.getElementById('content').innerHTML = html;
+    document.getElementById('content').innerHTML = htmlCompleto;
 }
 
 function actualizarUltimaActualizacion() {
@@ -535,5 +538,6 @@ function actualizarUltimaActualizacion() {
         `🔄 Última actualización: ${horaTexto}`;
 }
 
+// Inicializar
 cargarDatos();
 setInterval(cargarDatos, 30000);
