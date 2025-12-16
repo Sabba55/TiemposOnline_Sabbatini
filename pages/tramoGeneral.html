@@ -122,6 +122,14 @@
             flex: 1;
         }
 
+        .table-pe {
+            flex: 0 0 calc(40% - 15px);
+        }
+
+        .table-general {
+            flex: 0 0 calc(60% - 15px);
+        }
+
         .section-title {
             background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
             color: white;
@@ -246,25 +254,49 @@
             justify-content: center;
         }
 
-        @media (max-width: 768px) {
-            body {
-                padding: 5px;
-            }
+        /* Colores suaves por categoría para filas de PE */
+        .category-bg-1 td {
+            background-color: #bfdbfe !important;
+        }
 
-            .container {
-                padding: 10px;
-                margin: 5px auto;
-                border-radius: 8px;
-            }
+        .category-bg-2 td {
+            background-color: #c4b5fd !important;
+        }
 
-            h1 {
-                font-size: 20px;
-            }
+        .category-bg-3 td {
+            background-color: #fbcfe8 !important;
+        }
 
-            .section-title {
-                font-size: 16px;
-                padding: 12px;
-            }
+        .category-bg-4 td {
+            background-color: #bbf7d0 !important;
+        }
+
+        .category-bg-5 td {
+            background-color: #fef08a !important;
+        }
+
+        .category-bg-6 td {
+            background-color: #fcd34d !important;
+        }
+
+        .category-bg-7 td {
+            background-color: #fca5a5 !important;
+        }
+
+        .category-bg-8 td {
+            background-color: #d1d5db !important;
+        }
+
+        /* Mantener hover funcionando */
+        tr.category-bg-1:hover td,
+        tr.category-bg-2:hover td,
+        tr.category-bg-3:hover td,
+        tr.category-bg-4:hover td,
+        tr.category-bg-5:hover td,
+        tr.category-bg-6:hover td,
+        tr.category-bg-7:hover td,
+        tr.category-bg-8:hover td {
+            background-color: #93c5fd !important;
         }
     </style>
 </head>

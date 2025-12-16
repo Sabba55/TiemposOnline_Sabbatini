@@ -129,6 +129,29 @@ function calcularVelocidadPromedio(tiempoSegundos, distanciaKm) {
     return velocidad.toFixed(0);
 }
 
+function calcularVelocidadPromedioTotal(tiempoSegundos, peNumero) {
+    if (tiempoSegundos >= 999999) return '-';
+    
+    // Sumar la distancia de todos los tramos hasta el PE actual
+    let distanciaTotal = 0;
+    for (let i = 1; i <= peNumero; i++) {
+        const tramo = tramosData.find(t => t.PE === i.toString());
+        if (tramo && tramo.KMS) {
+            const distancia = parseFloat(tramo.KMS);
+            if (!isNaN(distancia) && distancia > 0) {
+                distanciaTotal += distancia;
+            }
+        }
+    }
+    
+    if (distanciaTotal === 0) return '-';
+    
+    const tiempoHoras = tiempoSegundos / 3600;
+    const velocidad = distanciaTotal / tiempoHoras;
+    
+    return velocidad.toFixed(0);
+}
+
 function obtenerPeorTiempoCategoria(pilotosCategoria) {
     let peorTiempo = 0;
     
@@ -216,16 +239,25 @@ function renderResults() {
     const tramoActual = tramosData.find(t => t.PE === peNumber);
     const distanciaTramo = tramoActual ? tramoActual.KMS : null;
 
+    // Asignar colores a categorías
+    const categorias = [...new Set(pilotosData.map(p => p.Categoria || p.CATEGORIA))].filter(c => c).sort();
+    const categoriasColor = {};
+    categorias.forEach((cat, index) => {
+        categoriasColor[cat] = (index % 8) + 1;
+    });
+
     // Clasificación P.E. General
     const pilotosPE = pilotosData
         .filter(p => p[ssColumn])
         .map(p => {
             const valorTiempo = p[ssColumn];
             const tieneDNF = esDNF(valorTiempo);
+            const categoria = p.Categoria || p.CATEGORIA || '';
             
             return {
                 nombre: p.Nombre || p.NOMBRE || '',
-                categoria: p.Categoria || p.CATEGORIA || '',
+                categoria: categoria,
+                colorIndex: categoriasColor[categoria] || 1,
                 tiempo: valorTiempo,
                 tiempoSegundos: timeToSeconds(valorTiempo),
                 tieneDNF: tieneDNF
@@ -256,7 +288,6 @@ function renderResults() {
                 <tr>
                     <th>Pos</th>
                     <th>Piloto</th>
-                    <th>Clase</th>
                     <th>Tiempo</th>
                     <th>Dif. 1°</th>
                     <th>PROM</th>
@@ -268,7 +299,8 @@ function renderResults() {
     pilotosPE.forEach((piloto, index) => {
         const diferencia = piloto.tiempoSegundos - mejorTiempo;
         const claseFilaDNF = piloto.tieneDNF ? 'fila-dnf' : '';
-        const rowClass = index === 0 ? 'pos-1' : claseFilaDNF;
+        const claseColor = `category-bg-${piloto.colorIndex}`;
+        const rowClass = index === 0 ? 'pos-1' : (claseFilaDNF ? claseFilaDNF : claseColor);
         const velocidadProm = calcularVelocidadPromedio(piloto.tiempoSegundos, distanciaTramo);
         const tiempoMostrar = piloto.tieneDNF ? 'DNF' : piloto.tiempo;
 
@@ -276,7 +308,6 @@ function renderResults() {
             <tr class="${rowClass}">
                 <td><strong>${index + 1}</strong></td>
                 <td>${piloto.nombre}</td>
-                <td>${piloto.categoria}</td>
                 <td>${tiempoMostrar}</td>
                 <td>${formatDifference(diferencia)}</td>
                 <td>${velocidadProm}</td>
@@ -360,6 +391,7 @@ function renderResults() {
                     <th>T. Total</th>
                     <th>Dif. 1°</th>
                     <th>Dif. Ant.</th>
+                    <th>PROM</th>
                 </tr>
             </thead>
             <tbody>
@@ -373,6 +405,7 @@ function renderResults() {
         const penalizFormateada = piloto.penalizacionSegundos > 0 ? secondsToTime(piloto.penalizacionSegundos) : '-';
         const totalFormateado = secondsToTime(piloto.totalConPenalizacion);
         const penalizClass = piloto.penalizacionSegundos > 0 ? 'penalizacion-activa' : '';
+        const velocidadPromTotal = calcularVelocidadPromedioTotal(piloto.totalConPenalizacion, peNumero);
 
         htmlGeneral += `
             <tr class="${rowClass}">
@@ -384,6 +417,7 @@ function renderResults() {
                 <td>${totalFormateado}</td>
                 <td>${formatDifference(dif1)}</td>
                 <td>${formatDifference(difAnt)}</td>
+                <td>${velocidadPromTotal}</td>
             </tr>
         `;
     });
@@ -395,8 +429,8 @@ function renderResults() {
 
     const html = `
         <div class="tables-container">
-            <div class="table-column">${htmlPE}</div>
-            <div class="table-column">${htmlGeneral}</div>
+            <div class="table-column table-pe">${htmlPE}</div>
+            <div class="table-column table-general">${htmlGeneral}</div>
         </div>
     `;
 

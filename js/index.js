@@ -40,7 +40,6 @@ async function loadRallyName() {
     }
 }
 
-// Funciones copiadas de tramo.js para manejo correcto de tiempos
 function corregirFormatoTiempo(cadenaHora) {
     if (!cadenaHora || cadenaHora === '') return '';
     
@@ -327,17 +326,14 @@ function renderMenu() {
 
     document.getElementById('content').innerHTML = html;
     
-    // Renderizar ganadores finales si todas las PE están completas
     renderGanadoresFinales();
 }
 
 function verificarPEsCompletas() {
     const totalPEs = tramosData.length;
     
-    // Obtener todas las categorías
     const categorias = [...new Set(pilotosData.map(p => p.Categoria || p.CATEGORIA))].filter(c => c);
     
-    // Verificar si al menos un piloto de cada categoría tiene todos los tiempos
     for (const categoria of categorias) {
         const pilotosCategoria = pilotosData.filter(p => (p.Categoria || p.CATEGORIA) === categoria);
         
@@ -353,21 +349,83 @@ function verificarPEsCompletas() {
         });
         
         if (algunoPilotoCompleto) {
-            return true; // Al menos una categoría tiene pilotos que completaron todas las PE
+            return true;
         }
     }
     
     return false;
 }
 
-function calcularGanadorCategoria(categoria, totalPEs) {
+function calcularClasificacionGeneral(totalPEs) {
+    const todosLosPilotos = pilotosData
+        .map(piloto => {
+            let totalSegundos = 0;
+            let tieneDatos = false;
+            
+            for (let i = 1; i <= totalPEs; i++) {
+                const columnaSS = `SS${i}`;
+                const tiempo = piloto[columnaSS];
+                
+                if (!tiempo || tiempo === '') {
+                    return null;
+                }
+                
+                tieneDatos = true;
+                
+                if (esDNF(tiempo)) {
+                    const categoria = piloto.Categoria || piloto.CATEGORIA;
+                    const pilotosEsteTramo = pilotosData
+                        .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[columnaSS])
+                        .map(p => {
+                            const valorTiempo = p[columnaSS];
+                            return {
+                                tiempoSegundos: timeToSeconds(valorTiempo),
+                                tieneDNF: esDNF(valorTiempo)
+                            };
+                        })
+                        .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
+                    
+                    const peorTiempoTramo = obtenerPeorTiempoCategoria(pilotosEsteTramo);
+                    totalSegundos += calcularTiempoDNF(peorTiempoTramo);
+                } else {
+                    const segundos = timeToSeconds(tiempo);
+                    if (segundos >= 999999) {
+                        return null;
+                    }
+                    totalSegundos += segundos;
+                }
+            }
+            
+            if (!tieneDatos) return null;
+            
+            const penalizacion = timeToSeconds(piloto.PENALIZACION || piloto.Penalizacion || '');
+            const penalizacionSegundos = penalizacion < 999999 ? penalizacion : 0;
+            const totalConPenalizacion = totalSegundos + penalizacionSegundos;
+            
+            return {
+                nombre: piloto.Nombre || piloto.NOMBRE || '',
+                categoria: piloto.Categoria || piloto.CATEGORIA || '',
+                totalConPenalizacion: totalConPenalizacion
+            };
+        })
+        .filter(p => p !== null)
+        .sort((a, b) => a.totalConPenalizacion - b.totalConPenalizacion);
+    
+    const clasificacion = {};
+    todosLosPilotos.forEach((piloto, index) => {
+        clasificacion[piloto.nombre] = index + 1;
+    });
+    
+    return clasificacion;
+}
+
+function calcularGanadorCategoria(categoria, totalPEs, clasificacionGeneral) {
     const pilotosCategoria = pilotosData
         .filter(p => (p.Categoria || p.CATEGORIA) === categoria)
         .map(piloto => {
             let totalSegundos = 0;
             let tuvoDNF = false;
             
-            // Sumar todos los tiempos de las PE (con lógica de DNF)
             for (let i = 1; i <= totalPEs; i++) {
                 const columnaSS = `SS${i}`;
                 const tiempo = piloto[columnaSS];
@@ -377,7 +435,6 @@ function calcularGanadorCategoria(categoria, totalPEs) {
                 }
                 
                 if (esDNF(tiempo)) {
-                    // Calcular tiempo DNF basado en el peor tiempo de la categoría en ese tramo
                     const pilotosEsteTramo = pilotosData
                         .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[columnaSS])
                         .map(p => {
@@ -401,19 +458,21 @@ function calcularGanadorCategoria(categoria, totalPEs) {
                 }
             }
             
-            // Agregar penalización si existe
             const penalizacion = timeToSeconds(piloto.PENALIZACION || piloto.Penalizacion || '');
             const penalizacionSegundos = penalizacion < 999999 ? penalizacion : 0;
             const totalConPenalizacion = totalSegundos + penalizacionSegundos;
             
+            const nombre = piloto.Nombre || piloto.NOMBRE || '';
+            
             return {
-                nombre: piloto.Nombre || piloto.NOMBRE || '',
+                nombre: nombre,
                 categoria: categoria,
                 totalSegundos: totalSegundos,
                 penalizacionSegundos: penalizacionSegundos,
                 totalConPenalizacion: totalConPenalizacion,
                 tiempoFormateado: segundosATiempo(totalConPenalizacion),
-                tieneDNF: tuvoDNF
+                tieneDNF: tuvoDNF,
+                posicionGeneral: clasificacionGeneral[nombre] || '-'
             };
         })
         .filter(p => p !== null)
@@ -423,29 +482,36 @@ function calcularGanadorCategoria(categoria, totalPEs) {
 }
 
 function renderGanadoresFinales() {
-    // Verificar si hay PE completas
     if (!verificarPEsCompletas()) {
-        return; // No mostrar nada si no hay PE completas
+        return;
     }
     
     const totalPEs = tramosData.length;
     const categorias = [...new Set(pilotosData.map(p => p.Categoria || p.CATEGORIA))].filter(c => c).sort();
+    
+    const clasificacionGeneral = calcularClasificacionGeneral(totalPEs);
     
     let html = '<div class="ganadores-finales-container">';
     html += '<h2 class="ganadores-title">Ganadores por Categoría</h2>';
     html += '<div class="ganadores-grid">';
     
     categorias.forEach(categoria => {
-        const ganador = calcularGanadorCategoria(categoria, totalPEs);
+        const ganador = calcularGanadorCategoria(categoria, totalPEs, clasificacionGeneral);
         
         if (ganador) {
             html += `
                 <div class="ganador-card">
                     <div class="ganador-categoria">${categoria}</div>
                     <div class="ganador-nombre">${ganador.nombre}</div>
-                    <div class="ganador-tiempo-total">
-                        <span class="tiempo-label">Tiempo Total:</span>
-                        <span class="tiempo-valor">${ganador.tiempoFormateado}</span>
+                    <div class="ganador-stats">
+                        <div class="ganador-tiempo-total">
+                            <span class="tiempo-label">Tiempo Total</span>
+                            <span class="tiempo-valor">${ganador.tiempoFormateado}</span>
+                        </div>
+                        <div class="ganador-posicion">
+                            <span class="tiempo-label">Pos. General</span>
+                            <span class="tiempo-valor">P${ganador.posicionGeneral}</span>
+                        </div>
                     </div>
                 </div>
             `;
