@@ -40,8 +40,37 @@ async function loadRallyName() {
     }
 }
 
+// Funciones copiadas de tramo.js para manejo correcto de tiempos
+function corregirFormatoTiempo(cadenaHora) {
+    if (!cadenaHora || cadenaHora === '') return '';
+    
+    let tiempo = cadenaHora.trim();
+    const separadores = (tiempo.match(/[:.,]/g) || []).length;
+    
+    if (separadores === 2) {
+        const partes = tiempo.split(/[:.,]/);
+        if (partes.length === 3) {
+            tiempo = `${partes[0]}:${partes[1]}.${partes[2]}`;
+        }
+    } else if (separadores === 1) {
+        tiempo = tiempo.replace(/[,]/, '.');
+    }
+    
+    return tiempo;
+}
+
+function esDNF(cadenaHora) {
+    if (!cadenaHora) return false;
+    const valorLimpio = cadenaHora.trim().toUpperCase();
+    return valorLimpio === 'DNF' || valorLimpio === 'D.N.F' || valorLimpio === 'D.N.F.';
+}
+
 function timeToSeconds(timeStr) {
     if (!timeStr || timeStr === '') return 999999;
+    
+    if (esDNF(timeStr)) return 999999;
+    
+    timeStr = corregirFormatoTiempo(timeStr);
     
     const parts = timeStr.split(':');
     if (parts.length === 2) {
@@ -50,6 +79,62 @@ function timeToSeconds(timeStr) {
         return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2]);
     }
     return 999999;
+}
+
+function segundosATiempo(segundos) {
+    if (segundos >= 999999) return '-';
+    
+    const horas = Math.floor(segundos / 3600);
+    const minutos = Math.floor((segundos % 3600) / 60);
+    const segs = (segundos % 60).toFixed(2);
+    
+    if (horas > 0) {
+        return `${horas}:${String(minutos).padStart(2, '0')}:${String(segs).padStart(5, '0')}`;
+    }
+    return `${minutos}:${String(segs).padStart(5, '0')}`;
+}
+
+function obtenerPeorTiempoCategoria(pilotosCategoria) {
+    let peorTiempo = 0;
+    
+    pilotosCategoria.forEach(piloto => {
+        if (piloto.tiempoSegundos < 999999 && piloto.tiempoSegundos > peorTiempo) {
+            peorTiempo = piloto.tiempoSegundos;
+        }
+    });
+    
+    return peorTiempo;
+}
+
+function calcularTiempoDNF(peorTiempoCategoria) {
+    return peorTiempoCategoria + 60;
+}
+
+function capitalizarTexto(texto) {
+    if (!texto) return '';
+    return texto.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { 
+        return a.toUpperCase(); 
+    });
+}
+
+function contarRepeticionesTramo(desdeHasta, indiceActual) {
+    let contador = 0;
+    for (let i = 0; i <= indiceActual; i++) {
+        const tramoActual = tramosData[i];
+        const desdeActual = tramoActual.Desde || '';
+        const hastaActual = tramoActual.Hasta || '';
+        const textoActual = `${desdeActual} - ${hastaActual}`;
+        
+        if (textoActual === desdeHasta) {
+            contador++;
+        }
+    }
+    return contador;
+}
+
+function numeroARomano(num) {
+    const romanos = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+    return romanos[num - 1] || num.toString();
 }
 
 function obtenerGanadorPE(peNumber) {
@@ -65,7 +150,8 @@ function obtenerGanadorPE(peNumber) {
                 mejorTiempo = segundos;
                 mejorPiloto = {
                     nombre: piloto.Nombre || piloto.NOMBRE || '',
-                    tiempo: tiempo
+                    tiempo: tiempo,
+                    clase: piloto.Categoria || piloto.CATEGORIA || ''
                 };
             }
         }
@@ -105,10 +191,8 @@ function obtenerHorarioMasTemplanoPE(peNumber) {
 }
 
 function validarConsistenciaDatos() {
-    // Contar cuántos PE hay en tramosData
     const numeroPEs = tramosData.length;
     
-    // Contar cuántas columnas SS hay en pilotosData
     if (pilotosData.length === 0) {
         return { valido: false, mensaje: 'No hay datos de pilotos' };
     }
@@ -147,7 +231,6 @@ async function loadData() {
         pilotosData = parseCSV(pilotosText);
         inscriptosData = parseCSV(inscriptosText);
         
-        // Validar consistencia de datos
         const validacion = validarConsistenciaDatos();
         if (!validacion.valido) {
             alert(validacion.mensaje);
@@ -187,32 +270,41 @@ function renderMenu() {
             <tbody>
     `;
 
-    tramosData.forEach(tramo => {
+    tramosData.forEach((tramo, index) => {
         const pe = tramo.PE || '';
         const desde = tramo.Desde || '';
         const hasta = tramo.Hasta || '';
-        const desdeHasta = desde && hasta ? `${desde} - ${hasta}` : '';
+        
+        let desdeHasta = '';
+        if (desde && hasta) {
+            const desdeCapitalizado = capitalizarTexto(desde);
+            const hastaCapitalizado = capitalizarTexto(hasta);
+            const textoBase = `${desdeCapitalizado} - ${hastaCapitalizado}`;
+            const repeticion = contarRepeticionesTramo(`${desde} - ${hasta}`, index);
+            const romano = numeroARomano(repeticion);
+            desdeHasta = `${textoBase} (${romano})`;
+        }
+        
         const kms = tramo.KMS || '';
-        
-        // Obtener horario automáticamente del primer auto en largar
         const hora = obtenerHorarioMasTemplanoPE(pe);
-
         const ganador = obtenerGanadorPE(pe);
-        let ganadorHTML = '-';
         
+        let ganadorHTML = '-';
         if (ganador) {
             ganadorHTML = `
-                <div>${ganador.nombre}</div>
-                <span class="ganador-tiempo">${ganador.tiempo}</span>
+                <div style="font-weight: 600; color: #1e40af; margin-bottom: 4px;">${ganador.nombre}</div>
+                <div style="font-size: 12px; font-weight: 700; color: #404955;">
+                    ${ganador.clase} | ${ganador.tiempo}
+                </div>
             `;
         }
 
         html += `
             <tr>
                 <td><span class="pe-number">${pe}</span></td>
-                <td>${desdeHasta}</td>
+                <td style="font-weight: 600;">${desdeHasta}</td>
                 <td>${kms}</td>
-                <td><strong>${hora}</strong></td>
+                <td>${hora}</td>
                 <td>
                     <div style="display: flex; gap: 8px; justify-content: center;">
                         <button class="btn-clases" onclick="verGeneral('${pe}')">
@@ -234,6 +326,135 @@ function renderMenu() {
     `;
 
     document.getElementById('content').innerHTML = html;
+    
+    // Renderizar ganadores finales si todas las PE están completas
+    renderGanadoresFinales();
+}
+
+function verificarPEsCompletas() {
+    const totalPEs = tramosData.length;
+    
+    // Obtener todas las categorías
+    const categorias = [...new Set(pilotosData.map(p => p.Categoria || p.CATEGORIA))].filter(c => c);
+    
+    // Verificar si al menos un piloto de cada categoría tiene todos los tiempos
+    for (const categoria of categorias) {
+        const pilotosCategoria = pilotosData.filter(p => (p.Categoria || p.CATEGORIA) === categoria);
+        
+        const algunoPilotoCompleto = pilotosCategoria.some(piloto => {
+            for (let i = 1; i <= totalPEs; i++) {
+                const columnaSS = `SS${i}`;
+                const tiempo = piloto[columnaSS];
+                if (!tiempo || tiempo === '') {
+                    return false;
+                }
+            }
+            return true;
+        });
+        
+        if (algunoPilotoCompleto) {
+            return true; // Al menos una categoría tiene pilotos que completaron todas las PE
+        }
+    }
+    
+    return false;
+}
+
+function calcularGanadorCategoria(categoria, totalPEs) {
+    const pilotosCategoria = pilotosData
+        .filter(p => (p.Categoria || p.CATEGORIA) === categoria)
+        .map(piloto => {
+            let totalSegundos = 0;
+            let tuvoDNF = false;
+            
+            // Sumar todos los tiempos de las PE (con lógica de DNF)
+            for (let i = 1; i <= totalPEs; i++) {
+                const columnaSS = `SS${i}`;
+                const tiempo = piloto[columnaSS];
+                
+                if (!tiempo || tiempo === '') {
+                    return null;
+                }
+                
+                if (esDNF(tiempo)) {
+                    // Calcular tiempo DNF basado en el peor tiempo de la categoría en ese tramo
+                    const pilotosEsteTramo = pilotosData
+                        .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[columnaSS])
+                        .map(p => {
+                            const valorTiempo = p[columnaSS];
+                            return {
+                                tiempoSegundos: timeToSeconds(valorTiempo),
+                                tieneDNF: esDNF(valorTiempo)
+                            };
+                        })
+                        .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
+                    
+                    const peorTiempoTramo = obtenerPeorTiempoCategoria(pilotosEsteTramo);
+                    totalSegundos += calcularTiempoDNF(peorTiempoTramo);
+                    tuvoDNF = true;
+                } else {
+                    const segundos = timeToSeconds(tiempo);
+                    if (segundos >= 999999) {
+                        return null;
+                    }
+                    totalSegundos += segundos;
+                }
+            }
+            
+            // Agregar penalización si existe
+            const penalizacion = timeToSeconds(piloto.PENALIZACION || piloto.Penalizacion || '');
+            const penalizacionSegundos = penalizacion < 999999 ? penalizacion : 0;
+            const totalConPenalizacion = totalSegundos + penalizacionSegundos;
+            
+            return {
+                nombre: piloto.Nombre || piloto.NOMBRE || '',
+                categoria: categoria,
+                totalSegundos: totalSegundos,
+                penalizacionSegundos: penalizacionSegundos,
+                totalConPenalizacion: totalConPenalizacion,
+                tiempoFormateado: segundosATiempo(totalConPenalizacion),
+                tieneDNF: tuvoDNF
+            };
+        })
+        .filter(p => p !== null)
+        .sort((a, b) => a.totalConPenalizacion - b.totalConPenalizacion);
+    
+    return pilotosCategoria.length > 0 ? pilotosCategoria[0] : null;
+}
+
+function renderGanadoresFinales() {
+    // Verificar si hay PE completas
+    if (!verificarPEsCompletas()) {
+        return; // No mostrar nada si no hay PE completas
+    }
+    
+    const totalPEs = tramosData.length;
+    const categorias = [...new Set(pilotosData.map(p => p.Categoria || p.CATEGORIA))].filter(c => c).sort();
+    
+    let html = '<div class="ganadores-finales-container">';
+    html += '<h2 class="ganadores-title">Ganadores por Categoría</h2>';
+    html += '<div class="ganadores-grid">';
+    
+    categorias.forEach(categoria => {
+        const ganador = calcularGanadorCategoria(categoria, totalPEs);
+        
+        if (ganador) {
+            html += `
+                <div class="ganador-card">
+                    <div class="ganador-categoria">${categoria}</div>
+                    <div class="ganador-nombre">${ganador.nombre}</div>
+                    <div class="ganador-tiempo-total">
+                        <span class="tiempo-label">Tiempo Total:</span>
+                        <span class="tiempo-valor">${ganador.tiempoFormateado}</span>
+                    </div>
+                </div>
+            `;
+        }
+    });
+    
+    html += '</div></div>';
+    
+    document.getElementById('content').innerHTML += html;
 }
 
 function verClases(pe) {
