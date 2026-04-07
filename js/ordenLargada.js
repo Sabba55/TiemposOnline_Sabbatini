@@ -31,7 +31,8 @@ function parseCSV(csv) {
 
 async function loadData() {
     try {
-        const response = await fetch(ORDENLARGADA_URL);
+        const cacheBuster = `&t=${Date.now()}`;
+        const response = await fetch(ORDENLARGADA_URL + cacheBuster);
         const text = await response.text();
         
         ordenLargadaData = parseCSV(text);
@@ -102,59 +103,68 @@ function formatearTiempoRestante(minutos) {
     return `${textoHoras} y ${minutosRestantes} minutos`;
 }
 
-function encontrarProximaLargada() {
-    if (ordenLargadaData.length === 0) return null;
+function encontrarProximasLargadas() {
+    if (ordenLargadaData.length === 0) return [];
     
     const ahora = new Date();
-    const horaActual = ahora.getHours();
-    const minutosActuales = ahora.getMinutes();
-    const tiempoActualEnMinutos = horaActual * 60 + minutosActuales;
-    
+    const tiempoActualEnMinutos = ahora.getHours() * 60 + ahora.getMinutes();
     const columnasSS = obtenerColumnasSS();
-    let proximaLargada = null;
-    let menorDiferencia = Infinity;
     
+    let menorDiferencia = Infinity;
+    let candidatos = [];
+
+    // Primero encontramos la menor diferencia
+    ordenLargadaData.forEach(piloto => {
+        columnasSS.forEach(ss => {
+            const tiempoLargada = convertirHorarioAMinutos(piloto[ss]);
+            if (tiempoLargada !== Infinity) {
+                const diferencia = tiempoLargada - tiempoActualEnMinutos;
+                if (diferencia >= 0 && diferencia < menorDiferencia) {
+                    menorDiferencia = diferencia;
+                }
+            }
+        });
+    });
+
+    if (menorDiferencia === Infinity) return [];
+
+    // Luego recolectamos TODOS los que tienen esa misma diferencia
     ordenLargadaData.forEach(piloto => {
         const nombre = piloto.Nombre || piloto.NOMBRE || '';
         const categoria = piloto.Categoria || piloto.CATEGORIA || '';
         
         columnasSS.forEach(ss => {
-            const horario = piloto[ss];
-            const tiempoLargada = convertirHorarioAMinutos(horario);
-            
+            const tiempoLargada = convertirHorarioAMinutos(piloto[ss]);
             if (tiempoLargada !== Infinity) {
                 const diferencia = tiempoLargada - tiempoActualEnMinutos;
-                
-                if (diferencia >= 0 && diferencia < menorDiferencia) {
-                    menorDiferencia = diferencia;
-                    proximaLargada = {
-                        nombre: nombre,
-                        categoria: categoria,
-                        horario: horario,
-                        ss: ss,
+                if (diferencia === menorDiferencia) {
+                    candidatos.push({
+                        nombre,
+                        categoria,
+                        horario: piloto[ss],
+                        ss,
                         minutosRestantes: Math.floor(diferencia)
-                    };
+                    });
                 }
             }
         });
     });
-    
-    return proximaLargada;
+
+    return candidatos;
 }
 
 function actualizarContadorProximaLargada() {
-    const proximaLargada = encontrarProximaLargada();
+    const proximasLargadas = encontrarProximasLargadas();
     const containerContador = document.getElementById('proximaLargadaContainer');
     
-    if (!proximaLargada) {
+    if (proximasLargadas.length === 0) {
         containerContador.innerHTML = '<div class="sin-largadas">🏁 No hay largadas programadas próximamente</div>';
         return;
     }
-    
-    const minutosRestantes = proximaLargada.minutosRestantes;
+
+    const minutosRestantes = proximasLargadas[0].minutosRestantes;
     const segundosRestantes = 60 - new Date().getSeconds();
-    const numeroSS = proximaLargada.ss.replace('SS', '');
-    
+
     let estadoTexto = '';
     let estadoClass = '';
     
@@ -171,31 +181,37 @@ function actualizarContadorProximaLargada() {
         estadoTexto = `Próxima largada en ${formatearTiempoRestante(minutosRestantes)}`;
         estadoClass = 'normal';
     }
-    
+
+    // Construir info de cada piloto
+    const pilotosHTML = proximasLargadas.map(p => `
+        <div class="info-piloto">
+            <div class="info-item">
+                <span class="label">Piloto:</span>
+                <span class="valor nombre">${p.nombre}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Categoría:</span>
+                <span class="valor">${p.categoria}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">PE:</span>
+                <span class="valor">${p.ss.replace('SS', '')}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Horario:</span>
+                <span class="valor horario">${p.horario}</span>
+            </div>
+        </div>
+        ${proximasLargadas.length > 1 ? '<hr class="separador-piloto">' : ''}
+    `).join('');
+
     containerContador.innerHTML = `
         <div class="contador-card ${estadoClass}">
             <div class="contador-header">
                 <h2 class="contador-titulo">${estadoTexto}</h2>
             </div>
             <div class="contador-body">
-                <div class="info-piloto">
-                    <div class="info-item">
-                        <span class="label">Piloto:</span>
-                        <span class="valor nombre">${proximaLargada.nombre}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="label">Categoría:</span>
-                        <span class="valor">${proximaLargada.categoria}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="label">PE:</span>
-                        <span class="valor">${numeroSS}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="label">Horario:</span>
-                        <span class="valor horario">${proximaLargada.horario}</span>
-                    </div>
-                </div>
+                ${pilotosHTML}
             </div>
         </div>
     `;
@@ -216,13 +232,6 @@ function renderOrdenLargada() {
         return tiempoA - tiempoB;
     });
 
-    // Obtener categorías únicas y asignar colores
-    const categoriasUnicas = [...new Set(datosOrdenados.map(p => p.Categoria || p.CATEGORIA || ''))];
-    const categoriasColor = {};
-    categoriasUnicas.forEach((cat, index) => {
-        categoriasColor[cat] = (index % 8) + 1;
-    });
-
     // Obtener hora actual para comparar (minuto exacto)
     const ahora = new Date();
     const tiempoActualEnMinutos = ahora.getHours() * 60 + ahora.getMinutes();
@@ -233,7 +242,7 @@ function renderOrdenLargada() {
                 <table>
                     <thead>
                         <tr>
-                            <th>N°</th>
+                            <th>#</th>
                             <th>Piloto</th>
                             <th>Categoría</th>
     `;
@@ -252,31 +261,32 @@ function renderOrdenLargada() {
     datosOrdenados.forEach((piloto, index) => {
         const nombre = piloto.Nombre || piloto.NOMBRE || '';
         const categoria = piloto.Categoria || piloto.CATEGORIA || '';
-        const colorIndex = categoriasColor[categoria];
+        
+        // Verificar si ALGÚN horario de este piloto está largando ahora
+        const estaLargando = columnasSS.some(ss => {
+            const tiempoLargada = convertirHorarioAMinutos(piloto[ss]);
+            return tiempoLargada !== Infinity && tiempoLargada === tiempoActualEnMinutos;
+        });
+
+        const claseVerde = estaLargando ? 'celda-largando' : '';
 
         html += `
             <tr>
-                <td class="categoria-col category-color-${colorIndex}"><span class="numero-badge">${index + 1}</span></td>
-                <td class="categoria-col category-color-${colorIndex}"><strong>${nombre}</strong></td>
-                <td class="categoria-col category-color-${colorIndex}"><strong>${categoria}</strong></td>
+                <td class="${claseVerde}">${index + 1}</td>
+                <td class="${claseVerde}"><strong>${nombre}</strong></td>
+                <td class="${claseVerde}"><strong>${categoria}</strong></td>
         `;
 
         columnasSS.forEach(ss => {
             const horario = piloto[ss] || '-';
-            let claseExtra = '';
-            
-            // Verificar si está largando AHORA (en el minuto exacto)
             const tiempoLargada = convertirHorarioAMinutos(horario);
-            if (tiempoLargada !== Infinity && tiempoLargada === tiempoActualEnMinutos) {
-                claseExtra = ' pe-horario-largando';
-            }
+            const estaLargandoEste = tiempoLargada !== Infinity && tiempoLargada === tiempoActualEnMinutos;
             
-            html += `<td class="pe-horario-cell${claseExtra}">${horario}</td>`;
+            // Verde si está largando en este PE específico, azul normal si no
+            html += `<td class="pe-horario-cell${estaLargandoEste ? ' celda-largando' : ''}">${horario}</td>`;
         });
 
-        html += `
-            </tr>
-        `;
+        html += `</tr>`;
     });
 
     html += `

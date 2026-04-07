@@ -156,9 +156,11 @@ function calcularVelocidadPromedio(segundosTiempo, distanciaKm) {
 
 async function cargarDatos() {
     try {
+        const cacheBuster = `&t=${Date.now()}`;
+
         const [respuestaPilotos, respuestaTramos] = await Promise.all([
-            fetch(URL_PILOTOS),
-            fetch(URL_TRAMOS)
+            fetch(URL_PILOTOS + cacheBuster),
+            fetch(URL_TRAMOS + cacheBuster)
         ]);
         
         const textoPilotos = await respuestaPilotos.text();

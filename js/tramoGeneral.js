@@ -170,9 +170,11 @@ function calcularTiempoDNF(peorTiempoCategoria) {
 
 async function loadData() {
     try {
+        const cacheBuster = `&t=${Date.now()}`;
+        
         const [pilotosResponse, tramosResponse] = await Promise.all([
-            fetch(PILOTOS_URL),
-            fetch(TRAMOS_URL)
+            fetch(PILOTOS_URL + cacheBuster),
+            fetch(TRAMOS_URL + cacheBuster)
         ]);
         
         const pilotosText = await pilotosResponse.text();
