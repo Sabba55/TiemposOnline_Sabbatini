@@ -94,7 +94,7 @@ h1 {
 
 .loading {
     text-align: center;
-    padding: 10px 20px;
+    padding: 10px 0px;
     font-size: 18px;
     color: #666;
 }
@@ -166,12 +166,12 @@ h1 {
 }
 
 .tabla-pe-container {
-    flex: 0 0 calc(45% - 12px);
+    flex: 0 0 calc(40% - 12px);
     min-width: 0;
 }
 
 .tabla-general-container {
-    flex: 0 0 calc(55% - 12px);
+    flex: 0 0 calc(60% - 12px);
     min-width: 0;
 }
 
@@ -227,13 +227,22 @@ h1 {
     box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
 }
 
+th.col-tiempo,
+td.col-tiempo,
+th.col-dif,
+td.col-dif,
+th.col-prom,
+td.col-prom {
+    width: 1%;
+    white-space: nowrap;
+}
+
 .table-wrapper {
     margin-bottom: 5px;
 }
 
 table {
     width: 100%;
-    min-width: 500px;
     border-collapse: collapse;
     border: 2px solid #1e40af;
     border-radius: 1px;
@@ -409,4 +418,11 @@ tr:hover .pe-horario-cell {
 tr:hover .pe-horario-modificado {
     color: #991b1b !important;
     background-color: #fecaca !important;
+}
+
+.celda-marca img {
+    height: 18px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
 }

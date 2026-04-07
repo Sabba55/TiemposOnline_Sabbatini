@@ -387,7 +387,7 @@ function renderResults() {
                     <th>Piloto</th>
                     <th>Clase</th>
                     <th>Tiempo</th>
-                    <th>Penaliz</th>
+                    <th>Penal.</th>
                     <th>T. Total</th>
                     <th>Dif. 1°</th>
                     <th>Dif. Ant.</th>

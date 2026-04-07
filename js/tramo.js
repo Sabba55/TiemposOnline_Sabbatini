@@ -112,9 +112,34 @@ function segundosATiempo(segundos) {
     return `${minutos}:${String(segs).padStart(5, '0')}`;
 }
 
+function segundosATiempoCompleto(segundos) {
+    if (segundos >= 999999) return '-';
+    
+    const horas = Math.floor(segundos / 3600);
+    const minutos = Math.floor((segundos % 3600) / 60);
+    const segs = (segundos % 60).toFixed(3);  // ← 3 decimales
+    
+    if (horas > 0) {
+        return `${horas}:${String(minutos).padStart(2, '0')}:${String(segs).padStart(6, '0')}`;
+    }
+    return `${minutos}:${String(segs).padStart(6, '0')}`;
+}
+
 function formatearDiferencia(segundosDif) {
     if (segundosDif === 0) return '-';
-    return '+' + segundosATiempo(segundosDif);
+    const texto = segundosATiempo(segundosDif); 
+    // Truncar a 1 decimal: cortar después del primer dígito tras el punto
+    const truncado = texto.replace(/(\.\d)\d+/, '$1');
+    return '+' + truncado;
+}
+
+function obtenerRutaLogo(vehiculo) {
+    if (!vehiculo) return null;
+    const marca = vehiculo.split(' ')[0].toLowerCase();
+    if (marca === 'skoda' && vehiculo.toLowerCase().includes('rs')) {
+        return '/assets/icon/skodars.png';
+    }
+    return `/assets/icon/${marca}.png`;
 }
 
 function calcularVelocidadPromedio(segundosTiempo, distanciaKm) {
@@ -370,6 +395,7 @@ function renderizarResultados() {
                 
                 return {
                     nombre: p.Nombre || p.NOMBRE || '',
+                    vehiculo: p.Vehiculo || p.VEHICULO || p.vehiculo || '',
                     categoria: categoria,
                     totalSegundos: totalSegundos,
                     penalizacionSegundos: penalizacionSegundos,
@@ -408,11 +434,11 @@ function renderizarResultados() {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>Pos</th>
+                                        <th class="col-pos">Pos</th>
                                         <th>Piloto</th>
-                                        <th>Tiempo</th>
-                                        <th>Dif. 1°</th>
-                                        <th>PROM</th>
+                                        <th class="col-tiempo">Tiempo</th>
+                                        <th class="col-dif">Dif. 1°</th>
+                                        <th class="col-prom">PROM</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -434,11 +460,11 @@ function renderizarResultados() {
 
                 htmlCompleto += `
                     <tr class="${claseFila}">
-                        <td><strong>${indice + 1}</strong></td>
+                        <td class="col-pos"><strong>${indice + 1}</strong></td>
                         <td>${piloto.nombre}</td>
-                        <td>${tiempoMostrar}</td>
-                        <td>${formatearDiferencia(diferencia)}</td>
-                        <td>${velocidadProm}</td>
+                        <td class="col-tiempo">${tiempoMostrar}</td>
+                        <td class="col-dif">${formatearDiferencia(diferencia)}</td>
+                        <td class="col-prom">${velocidadProm}</td>
                     </tr>
                 `;
             });
@@ -457,10 +483,11 @@ function renderizarResultados() {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>Pos</th>
+                                        <th class="col-pos">Pos</th>
                                         <th>Piloto</th>
+                                        <th style="width:1%">Marca</th>
                                         <th>Tiempo</th>
-                                        <th>Penaliz</th>
+                                        <th>Penal.</th>
                                         <th>T. Total</th>
                                         <th>Dif. 1°</th>
                                         <th>Dif. Ant.</th>
@@ -494,10 +521,12 @@ function renderizarResultados() {
                 const difAnt = indice > 0 ? piloto.totalConPenalizacion - pilotosGeneralCategoria[indice - 1].totalConPenalizacion : 0;
                 const claseFila = indice === 0 ? 'pos-1' : (piloto.tieneDNF ? 'fila-dnf' : '');
                 
-                const tiempoFormateado = segundosATiempo(piloto.totalSegundos);
+                const tiempoFormateado = segundosATiempoCompleto(piloto.totalSegundos);
                 const penalizFormateada = piloto.penalizacionSegundos > 0 ? segundosATiempo(piloto.penalizacionSegundos) : '-';
-                const totalFormateado = segundosATiempo(piloto.totalConPenalizacion);
+                const totalFormateado  = segundosATiempoCompleto(piloto.totalConPenalizacion);
                 const clasePenaliz = piloto.penalizacionSegundos > 0 ? 'penalizacion-activa' : '';
+                const rutaLogo = obtenerRutaLogo(piloto.vehiculo);
+                const marca = piloto.vehiculo ? piloto.vehiculo.split(' ')[0] : '-';
 
                 htmlCompleto += `
                     <tr class="${claseFila}">
@@ -508,6 +537,13 @@ function renderizarResultados() {
                             </div>
                         </td>
                         <td>${piloto.nombre}</td>
+                        <td>
+                            ${rutaLogo 
+                                ? `<img src="${rutaLogo}" alt="${marca}" style="height:20px; object-fit:contain;"
+                                    onerror="this.onerror=null; this.replaceWith(document.createTextNode('${marca}'))">`
+                                : marca
+                            }
+                        </td>
                         <td>${tiempoFormateado}</td>
                         <td class="${clasePenaliz}">${penalizFormateada}</td>
                         <td>${totalFormateado}</td>
