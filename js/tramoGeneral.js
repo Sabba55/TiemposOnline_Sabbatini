@@ -113,7 +113,9 @@ function crearMapaColoresCategorias(categorias) {
 
 function formatearDiferencia(segundosDiferencia) {
     if (segundosDiferencia === 0) return '-';
-    return '+' + segundosATiempo(segundosDiferencia, 2);
+    const texto = segundosATiempo(segundosDiferencia, 2);
+    const truncado = texto.replace(/(\.\d)\d+/, '$1');
+    return '+' + truncado;
 }
 
 function calcularVelocidadPromedio(tiempoSegundos, distanciaKm) {
@@ -254,7 +256,7 @@ function renderizarResultados() {
                     <th>Piloto</th>
                     <th>Tiempo</th>
                     <th>Dif. 1°</th>
-                    <th>PROM</th>
+                    <th class="col-prom">PROM</th>
                 </tr>
             </thead>
             <tbody>
@@ -274,7 +276,7 @@ function renderizarResultados() {
                 <td>${piloto.nombre}</td>
                 <td>${tiempoMostrar}</td>
                 <td>${formatearDiferencia(diferencia)}</td>
-                <td>${velocidadProm}</td>
+                <td class="col-prom">${velocidadProm}</td>
             </tr>
         `;
     });
@@ -352,7 +354,7 @@ function renderizarResultados() {
                     <th>T. Total</th>
                     <th>Dif. 1°</th>
                     <th>Dif. Ant.</th>
-                    <th>PROM</th>
+                    <th class="col-prom">PROM</th>
                 </tr>
             </thead>
             <tbody>
@@ -362,9 +364,9 @@ function renderizarResultados() {
         const dif1 = piloto.totalConPenalizacion - mejorTotal;
         const difAnt = index > 0 ? piloto.totalConPenalizacion - pilotosGeneral[index - 1].totalConPenalizacion : 0;
         const rowClass = index === 0 ? 'pos-1' : (piloto.tieneDNF ? 'fila-dnf' : '');
-        const tiempoFormateado = segundosATiempo(piloto.totalSegundos, 2);
+        const tiempoFormateado = segundosATiempo(piloto.totalSegundos, 3);
         const penalizFormateada = piloto.penalizacionSegundos > 0 ? segundosATiempo(piloto.penalizacionSegundos, 2) : '-';
-        const totalFormateado = segundosATiempo(piloto.totalConPenalizacion, 2);
+        const totalFormateado = segundosATiempo(piloto.totalConPenalizacion, 3);
         const penalizClass = piloto.penalizacionSegundos > 0 ? 'penalizacion-activa' : '';
         const velocidadPromTotal = calcularVelocidadPromedioTotal(piloto.totalConPenalizacion, peNumero);
 
@@ -378,7 +380,7 @@ function renderizarResultados() {
                 <td>${totalFormateado}</td>
                 <td>${formatearDiferencia(dif1)}</td>
                 <td>${formatearDiferencia(difAnt)}</td>
-                <td>${velocidadPromTotal}</td>
+                <td class="col-prom">${velocidadPromTotal}</td>
             </tr>
         `;
     });

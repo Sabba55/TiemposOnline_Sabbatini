@@ -294,9 +294,8 @@ function calcularClasificacionGeneral(totalPEs) {
                 tieneDatos = true;
                 
                 if (esDNF(tiempo)) {
-                    const categoria = piloto.Categoria || piloto.CATEGORIA;
                     const pilotosEsteTramo = pilotosData
-                        .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[columnaSS])
+                        .filter(p => p[columnaSS])
                         .map(p => {
                             const valorTiempo = p[columnaSS];
                             return {

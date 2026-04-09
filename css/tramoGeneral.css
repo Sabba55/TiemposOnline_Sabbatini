@@ -328,3 +328,9 @@ tr.category-bg-7:hover td,
 tr.category-bg-8:hover td {
     background-color: #d6d6d6 !important;
 }
+
+th.col-prom,
+td.col-prom {
+    width: 1%;
+    white-space: nowrap;
+}
