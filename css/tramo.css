@@ -363,7 +363,7 @@ tr:hover td {
 
 .penalizacion-activa {
     color: #dc2626;
-    font-weight: normal;
+    font-weight: 700;
 }
 
 .fila-dnf td {
