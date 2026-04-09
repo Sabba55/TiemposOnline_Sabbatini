@@ -1,36 +1,59 @@
-/* Reset básico */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
+:root {
+    --color-grafito-950: #111315;
+    --color-grafito-900: #1a1d21;
+    --color-grafito-800: #232830;
+    --color-grafito-700: #303743;
+    --color-azul-principal: #0f172a;
+    --color-azul-principal-hover: #1b263b;
+    --color-panel: #f4f6f8;
+    --color-panel-brillo: #ffffff;
+    --color-borde: #3c4656;
+    --color-borde-suave: #d7dde5;
+    --color-texto: #161c25;
+    --color-texto-suave: #5a6472;
+    --color-texto-claro: #e8edf3;
+    --color-error: #a61b1b;
+    --color-estado-normal: #c9defc;
+    --color-estado-cercana: #fff1b8;
+    --color-estado-urgente: #fcc2c2;
+    --color-estado-ahora: #c7f5d7;
+    --color-estado-normal-borde: #4f7bb8;
+    --color-estado-cercana-borde: #c6a63a;
+    --color-estado-urgente-borde: #d67777;
+    --color-estado-ahora-borde: #4f9e6a;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    background: linear-gradient(135deg, var(--color-grafito-900) 0%, var(--color-azul-principal) 100%);
     min-height: 100vh;
     padding: 20px;
     min-width: 1300px;
 }
 
-/* Contenedor principal */
 .container {
     max-width: 1300px;
     min-width: 1300px;
     margin: 30px auto;
-    background-color: white;
+    background: rgba(255, 255, 255, 0.94);
     padding: 30px;
     border-radius: 20px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    border: 1px solid rgba(215, 221, 229, 0.9);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
 }
 
-/* Botón de volver */
 .btn-back {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
+    color: var(--color-texto-claro);
     padding: 12px 24px;
     text-decoration: none;
     border-radius: 10px;
@@ -38,28 +61,27 @@ body {
     font-weight: 600;
     font-size: 14px;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .btn-back:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(100, 116, 139, 0.5);
-    background: linear-gradient(135deg, #475569 0%, #334155 100%);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.36);
+    background: linear-gradient(135deg, var(--color-azul-principal-hover) 0%, var(--color-grafito-700) 100%);
 }
 
-/* Título principal */
 h1 {
+    font-family: 'Orbitron', serif;
     text-align: center;
-    color: #1e293b;
-    margin-bottom: 10px;
-    font-weight: 700;
+    color: var(--color-azul-principal);
+    margin-bottom: 16px;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
 }
 
-/* === ESTILOS DEL CONTADOR DE PRÓXIMA LARGADA === */
 #proximaLargadaContainer {
     margin: 25px 0;
     display: flex;
@@ -67,83 +89,69 @@ h1 {
 }
 
 .sin-largadas {
-    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
+    color: var(--color-texto-claro);
     padding: 15px 30px;
     border-radius: 12px;
     text-align: center;
     font-size: 16px;
-    font-weight: 600;
-    box-shadow: 0 4px 15px rgba(100, 116, 139, 0.3);
+    font-weight: 700;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.22);
 }
 
 .contador-card {
-    background: white;
-    border-radius: 15px;
-    padding: 18px 30px;
-    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
-    min-width: 600px;
-    border: 3px solid;
+    border-radius: 16px;
+    padding: 20px 28px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+    min-width: 680px;
+    border: 2px solid;
     transition: all 0.3s ease;
 }
 
-/* Estados del contador */
 .contador-card.normal {
-    border-color: #3b82f6;
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border-color: var(--color-estado-normal-borde);
+    background: var(--color-estado-normal);
 }
 
 .contador-card.cercana {
-    border-color: #f59e0b;
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border-color: var(--color-estado-cercana-borde);
+    background: var(--color-estado-cercana);
 }
 
 .contador-card.urgente {
-    border-color: #ef4444;
-    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border-color: var(--color-estado-urgente-borde);
+    background: var(--color-estado-urgente);
 }
 
 .contador-card.largando-ahora {
-    border-color: #22c55e;
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-color: var(--color-estado-ahora-borde);
+    background: var(--color-estado-ahora);
 }
 
 .contador-header {
-    margin-bottom: 15px;
+    margin-bottom: 14px;
     text-align: center;
 }
 
 .contador-titulo {
+    font-family: 'Orbitron', serif;
     font-size: 22px;
-    font-weight: 700;
+    font-weight: 800;
     margin: 0;
-}
-
-.contador-card.normal .contador-titulo {
-    color: #1e40af;
-}
-
-.contador-card.cercana .contador-titulo {
-    color: #d97706;
-}
-
-.contador-card.urgente .contador-titulo {
-    color: #dc2626;
-}
-
-.contador-card.largando-ahora .contador-titulo {
-    color: #16a34a;
+    color: var(--color-azul-principal);
+    letter-spacing: 1px;
 }
 
 .contador-body {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .info-piloto {
     display: flex;
     flex-direction: row;
-    gap: 20px;
+    gap: 16px;
     width: 100%;
     align-items: center;
     justify-content: center;
@@ -153,56 +161,36 @@ h1 {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 16px;
-    background: rgba(255, 255, 255, 0.7);
-    border-radius: 8px;
-    border-left: 3px solid;
-}
-
-.contador-card.normal .info-item {
-    border-left-color: #3b82f6;
-}
-
-.contador-card.cercana .info-item {
-    border-left-color: #f59e0b;
-}
-
-.contador-card.urgente .info-item {
-    border-left-color: #ef4444;
-}
-
-.contador-card.largando-ahora .info-item {
-    border-left-color: #22c55e;
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.65);
+    border-radius: 10px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
 }
 
 .info-item .label {
     font-size: 13px;
-    font-weight: 600;
-    color: #64748b;
+    font-weight: 700;
+    color: var(--color-texto-suave);
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.6px;
 }
 
 .info-item .valor {
     font-size: 16px;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--color-azul-principal);
 }
 
-.info-item .valor.nombre {
-    font-size: 17px;
-}
-
+.info-item .valor.nombre,
 .info-item .valor.horario {
     font-size: 17px;
 }
 
-/* Loading */
 .loading {
     text-align: center;
-    padding: 10px 20px;
+    padding: 12px 20px;
     font-size: 18px;
-    color: #666;
+    color: var(--color-texto-suave);
 }
 
 .loading::after {
@@ -216,12 +204,10 @@ h1 {
     60%, 100% { content: '...'; }
 }
 
-/* Sección de categoría */
 .category-section {
     margin-bottom: 35px;
 }
 
-/* Wrapper de tabla */
 .table-wrapper {
     margin-bottom: 5px;
     overflow-x: auto;
@@ -229,29 +215,33 @@ h1 {
     justify-content: center;
 }
 
-/* Tabla */
 table {
     width: 90%;
     min-width: 500px;
     border-collapse: collapse;
-    border: 2px solid #1e40af;
+    border: 2px solid var(--color-azul-principal);
     border-radius: 12px;
     overflow: hidden;
     margin: 0 auto;
-    font-size: 16px !important;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
+}
+
+th,
+td {
+    padding: 12px 20px;
+    white-space: nowrap;
+    font-size: 16px;
 }
 
 th {
-    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-    color: white;
-    padding: 12px 20px !important;
+    background: var(--color-azul-principal);
+    color: var(--color-texto-claro);
     text-align: center;
-    font-size: 17px !important;
-    font-weight: 700 !important;
+    font-size: 17px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-right: 2px solid #1e40af;
-    white-space: nowrap;
+    letter-spacing: 0.7px;
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 th:last-child {
@@ -259,16 +249,13 @@ th:last-child {
 }
 
 td {
-    padding: 12px 20px !important;
     text-align: center;
-    border-bottom: 2px solid #e5e7eb;
-    border-right: 2px solid #e5e7eb;
-    background-color: #fff;
-    font-size: 16px !important;
-    color: #2b2b2b;
+    border-bottom: 1px solid var(--color-borde-suave);
+    border-right: 1px solid var(--color-borde-suave);
+    background-color: var(--color-panel-brillo);
+    color: var(--color-texto);
     height: 50px;
     vertical-align: middle;
-    white-space: nowrap;
 }
 
 td:last-child {
@@ -276,7 +263,7 @@ td:last-child {
 }
 
 td strong {
-    font-size: 18px !important;
+    font-size: 18px;
 }
 
 tbody tr:last-child td {
@@ -284,88 +271,78 @@ tbody tr:last-child td {
 }
 
 tbody tr:nth-child(odd) td {
-    background-color: #f3f4f6;
+    background-color: #f0f3f6;
 }
 
 tbody tr:nth-child(even) td {
-    background-color: #fff;
+    background-color: var(--color-panel-brillo);
 }
 
-/* Badge para números */
 .numero-badge {
     display: inline-block;
-    color: white;
-    font-weight: bold;
+    color: var(--color-azul-principal);
+    font-family: 'Orbitron', serif;
+    font-weight: 800;
     font-size: 18px;
 }
 
-/* Estilos para columnas PE (Orden de Largada) */
 .pe-horario-cell {
-    font-weight: bold !important;
-    color: #2055aa !important;
-    font-size: 18px !important;
+    font-weight: 800;
+    color: #1f4b8f;
+    font-size: 18px;
     transition: all 0.3s ease;
 }
 
-/* Estilo para horarios que están largando AHORA (solo durante el minuto exacto) */
 .pe-horario-largando {
-    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+    background: #4f9e6a !important;
     color: white !important;
     font-weight: 900 !important;
-    box-shadow: 0 0 10px rgba(34, 197, 94, 0.5) !important;
+    box-shadow: 0 0 10px rgba(79, 158, 106, 0.35) !important;
 }
 
-/* Asegurar que el estilo se mantenga en hover */
 tr:hover .pe-horario-cell {
-    color: #1e40af !important;
+    color: #183f7b !important;
 }
 
 tr:hover .pe-horario-largando {
-    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%) !important;
+    background: #43885b !important;
     color: white !important;
 }
 
 td.celda-largando {
-    background: #16a34a !important;
+    background: #4f9e6a !important;
     color: white !important;
     font-weight: 700 !important;
 }
 
 tr:hover td.celda-largando {
-    background: #16a34a !important;
+    background: #4f9e6a !important;
     color: white !important;
 }
 
-/* Mensaje de error */
 .error {
-    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    background: linear-gradient(135deg, var(--color-error) 0%, #c62828 100%);
     color: white;
     padding: 20px;
     border-radius: 12px;
     text-align: center;
     margin: 20px 0;
-    box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
+    box-shadow: 0 8px 18px rgba(166, 27, 27, 0.24);
 }
 
-/* Última actualización */
 .last-update {
     text-align: center;
-    color: #64748b;
-    font-size: 13px;
+    color: var(--color-texto-suave);
+    font-size: 14px;
     margin-top: 25px;
     padding: 15px;
-    background: #f1f5f9;
+    background: #eef2f6;
     border-radius: 8px;
+    font-weight: 500;
 }
 
 .separador-piloto {
     border: none;
-    border-top: 1px solid rgba(0,0,0,0.1);
+    border-top: 1px solid rgba(15, 23, 42, 0.1);
     margin: 8px 0;
-}
-
-.contador-body {
-    display: flex;
-    flex-direction: column;  /* ← cambiá de row a column para apilar pilotos */
-    gap: 8px;
 }
