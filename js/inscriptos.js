@@ -1,77 +1,167 @@
 const INSCRIPTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=297990427&single=true&output=csv';
+const { analizarCSV } = window.UtilidadesCSV;
+const { obtenerRutaLogoMarca } = window.UtilidadesIconos;
 
 let inscriptosData = [];
 
-/* ==========================
-   PARSEADOR CSV
-========================== */
-function parseCSV(csv) {
-    const lines = csv.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim().toUpperCase());
-    const data = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        
-        const values = lines[i].split(',').map(v => v.trim());
-        const obj = {};
+function normalizarCategoria(categoria) {
+    return (categoria || '').trim();
+}
 
-        headers.forEach((header, index) => {
-            obj[header] = values[index] || '';
-        });
+function esCategoriaRC2(categoria) {
+    const categoriaNormalizada = normalizarCategoria(categoria).toUpperCase();
+    return categoriaNormalizada === 'RC2' || categoriaNormalizada === 'RALLY2';
+}
 
-        const numero = obj['Nº'] || '';
-        const nombre = obj.NOMBRE || '';
-        const vehiculo = obj.VEHICULO || '';
-        const categoria = obj.CATEGORIA || '';
-        
-        // Extraer marca desde la primera palabra del vehículo
-        let marca = '';
-        if (vehiculo) {
-            const vehiculoLower = vehiculo.toLowerCase();
-            
-            // Excepción especial: si contiene "skoda" y "rs", usar "skodars"
-            if (vehiculoLower.includes('skoda') && vehiculoLower.includes('rs')) {
-                marca = 'skodars';
-            } else {
-                // Comportamiento normal: primera palabra en minúsculas
-                marca = vehiculo.split(' ')[0].toLowerCase();
-            }
+function esCategoriaRCMR(categoria) {
+    return normalizarCategoria(categoria).toUpperCase() === 'RCMR';
+}
+
+function esCategoriaRC4(categoria) {
+    return normalizarCategoria(categoria).toUpperCase() === 'RC4';
+}
+
+function esCategoriaRC3OJunior(categoria) {
+    const categoriaNormalizada = normalizarCategoria(categoria).toUpperCase();
+    return categoriaNormalizada === 'RC3' || categoriaNormalizada === 'JUNIOR';
+}
+
+function esCategoriaRC5(categoria) {
+    return normalizarCategoria(categoria).toUpperCase() === 'RC5';
+}
+
+function obtenerPrioridadCategoria(categoria) {
+    if (esCategoriaRC2(categoria)) return 0;
+    if (esCategoriaRCMR(categoria)) return 1;
+    return 2;
+}
+
+function ordenarCategorias(categorias) {
+    return [...categorias].sort((a, b) => {
+        const prioridadA = obtenerPrioridadCategoria(a);
+        const prioridadB = obtenerPrioridadCategoria(b);
+
+        if (prioridadA !== prioridadB) {
+            return prioridadA - prioridadB;
         }
-        
-        if (nombre && categoria) {
-            data.push({
-                numero: numero,
-                nombre: nombre,
-                marca: marca,
-                vehiculo: vehiculo,
-                categoria: categoria
-            });
+
+        return a.localeCompare(b, 'es', { sensitivity: 'base' });
+    });
+}
+
+function obtenerIndiceColorCategoria(categoria) {
+    if (esCategoriaRC2(categoria)) return 1;
+    if (esCategoriaRCMR(categoria)) return 2;
+    if (esCategoriaRC4(categoria)) return 3;
+    if (esCategoriaRC3OJunior(categoria)) return 4;
+    if (esCategoriaRC5(categoria)) return 5;
+
+    const categoriasAlternativas = ['6', '7', '8'];
+    const codigo = normalizarCategoria(categoria)
+        .split('')
+        .reduce((acumulado, letra) => acumulado + letra.charCodeAt(0), 0);
+
+    return Number(categoriasAlternativas[codigo % categoriasAlternativas.length]);
+}
+
+function obtenerColorPdfCategoria(categoria) {
+    if (esCategoriaRC2(categoria)) return [252, 194, 194];
+    if (esCategoriaRCMR(categoria)) return [255, 254, 195];
+    if (esCategoriaRC4(categoria)) return [201, 222, 252];
+    if (esCategoriaRC3OJunior(categoria)) return [248, 201, 234];
+    if (esCategoriaRC5(categoria)) return [199, 245, 247];
+
+    const coloresAlternativos = [
+        [229, 212, 255],
+        [216, 240, 200],
+        [255, 225, 191]
+    ];
+
+    const codigo = normalizarCategoria(categoria)
+        .split('')
+        .reduce((acumulado, letra) => acumulado + letra.charCodeAt(0), 0);
+
+    return coloresAlternativos[codigo % coloresAlternativos.length];
+}
+
+function obtenerNumeroInscripto(fila) {
+    return fila['Nº'] || fila['N°'] || fila['NÂº'] || fila['NÃ‚Âº'] || '';
+}
+
+function construirInfoCategorias() {
+    const categoriasMap = {};
+
+    inscriptosData.forEach(inscripto => {
+        const categoria = inscripto.categoria;
+
+        if (!categoriasMap[categoria]) {
+            categoriasMap[categoria] = {
+                cantidad: 0,
+                colorIndex: obtenerIndiceColorCategoria(categoria),
+                filas: []
+            };
         }
-    }
-    
-    return data;
+
+        categoriasMap[categoria].cantidad += 1;
+        categoriasMap[categoria].filas.push(inscripto);
+    });
+
+    const categoriasOrdenadas = ordenarCategorias(Object.keys(categoriasMap));
+    const categoriasInfo = {};
+
+    categoriasOrdenadas.forEach(categoria => {
+        categoriasInfo[categoria] = categoriasMap[categoria];
+    });
+
+    return categoriasInfo;
+}
+
+function renderizarContadorCategorias(categoriasInfo) {
+    const contadorCategoriasElement = document.getElementById('contadorCategorias');
+    if (!contadorCategoriasElement) return;
+    contadorCategoriasElement.innerHTML = '';
 }
 
 /* ==========================
    CARGA DE DATOS
 ========================== */
-async function loadData() {
+async function cargarDatos() {
     try {
         const response = await fetch(INSCRIPTOS_URL);
         const text = await response.text();
-        
-        inscriptosData = parseCSV(text);
-        
-        // Ordenar por categoría alfabéticamente
-        inscriptosData.sort((a, b) => a.categoria.localeCompare(b.categoria));
-        
-        renderInscriptos();
-        updateLastUpdate();
+
+        inscriptosData = analizarCSV(text, {
+            transformarEncabezados: encabezado => encabezado.trim().toUpperCase(),
+            filtrarFila: fila => Boolean(fila.NOMBRE && fila.CATEGORIA),
+            mapearFila: fila => ({
+                numero: obtenerNumeroInscripto(fila),
+                nombre: fila.NOMBRE || '',
+                vehiculo: fila.VEHICULO || '',
+                categoria: normalizarCategoria(fila.CATEGORIA)
+            })
+        });
+
+        inscriptosData.sort((a, b) => {
+            const prioridadA = obtenerPrioridadCategoria(a.categoria);
+            const prioridadB = obtenerPrioridadCategoria(b.categoria);
+
+            if (prioridadA !== prioridadB) {
+                return prioridadA - prioridadB;
+            }
+
+            const categoriaComparada = a.categoria.localeCompare(b.categoria, 'es', { sensitivity: 'base' });
+            if (categoriaComparada !== 0) {
+                return categoriaComparada;
+            }
+
+            return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+        });
+
+        renderizarInscriptos();
+        actualizarUltimaActualizacion();
     } catch (error) {
-        document.getElementById('content').innerHTML = 
-            '<div class="error">⚠️ Error al cargar los datos. Por favor, verifica que la hoja de cálculo esté publicada correctamente.</div>';
+        document.getElementById('content').innerHTML =
+            '<div class="error">Error al cargar los datos. Por favor, verificá que la hoja de cálculo esté publicada correctamente.</div>';
         console.error('Error:', error);
     }
 }
@@ -79,38 +169,24 @@ async function loadData() {
 /* ==========================
    RENDER PRINCIPAL
 ========================== */
-function renderInscriptos() {
+function renderizarInscriptos() {
     const contentElement = document.getElementById('content');
     const contadorElement = document.getElementById('contadorPilotos');
-    
+
     if (!contentElement || !contadorElement) return;
 
     if (inscriptosData.length === 0) {
-        contentElement.innerHTML = 
-            '<div class="error">❌ No se encontraron inscriptos.</div>';
+        contentElement.innerHTML =
+            '<div class="error">No se encontraron inscriptos.</div>';
         contadorElement.textContent = '0';
+        renderizarContadorCategorias({});
         return;
     }
 
     contadorElement.textContent = inscriptosData.length;
 
-    // Conteo + asignación de color por categoría
-    const categoriasInfo = {};
-    let colorIndexCounter = 0;
-    
-    inscriptosData.forEach(inscripto => {
-        const cat = inscripto.categoria;
-
-        if (!categoriasInfo[cat]) {
-            categoriasInfo[cat] = {
-                count: 1,
-                colorIndex: (colorIndexCounter % 8) + 1
-            };
-            colorIndexCounter++;
-        } else {
-            categoriasInfo[cat].count++;
-        }
-    });
+    const categoriasInfo = construirInfoCategorias();
+    renderizarContadorCategorias(categoriasInfo);
 
     let html = `
         <div class="category-section">
@@ -130,7 +206,7 @@ function renderInscriptos() {
 
     let categoriaActual = '';
 
-    inscriptosData.forEach((inscripto) => {
+    inscriptosData.forEach(inscripto => {
         if (inscripto.categoria !== categoriaActual) {
             categoriaActual = inscripto.categoria;
             const info = categoriasInfo[categoriaActual];
@@ -139,20 +215,19 @@ function renderInscriptos() {
                 <tr class="category-header category-color-${info.colorIndex}">
                     <td colspan="5">
                         <span>CLASE: ${categoriaActual}</span>
-                        <span class="category-count">INSCRIPTOS: ${info.count}</span>
+                        <span class="category-count">INSCRIPTOS: ${info.cantidad}</span>
                     </td>
                 </tr>
             `;
         }
 
-        // Badge para número
-        const numeroBadge = inscripto.numero 
-            ? `<span class="numero-badge">${inscripto.numero}</span>` 
+        const numeroBadge = inscripto.numero
+            ? `<span class="numero-badge">${inscripto.numero}</span>`
             : '-';
 
-        // Logo de marca
-        const logoMarca = inscripto.marca 
-            ? `<img src="/assets/icon/${inscripto.marca}.png" alt="${inscripto.marca}" class="marca-logo">` 
+        const rutaLogoMarca = obtenerRutaLogoMarca(inscripto.vehiculo);
+        const logoMarca = rutaLogoMarca
+            ? `<img src="${rutaLogoMarca}" alt="${inscripto.vehiculo}" class="marca-logo">`
             : '-';
 
         html += `
@@ -179,87 +254,66 @@ function renderInscriptos() {
 /* ==========================
    ACTUALIZADOR DE FECHA/HORA
 ========================== */
-function updateLastUpdate() {
+function actualizarUltimaActualizacion() {
     const lastUpdateElement = document.getElementById('lastUpdate');
     if (!lastUpdateElement) return;
 
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const dateStr = now.toLocaleDateString('es-AR');
-    
-    lastUpdateElement.textContent = 
-        `🔄 Última actualización: ${dateStr} - ${timeStr}`;
+    const ahora = new Date();
+    const hora = ahora.toLocaleTimeString('es-AR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    const fecha = ahora.toLocaleDateString('es-AR');
+
+    lastUpdateElement.textContent = `Última actualización: ${fecha} - ${hora}`;
 }
 
 /* ==========================
    EXPORTAR A PDF
 ========================== */
-function exportToPDF() {
+function exportarAPDF() {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l', 'mm', 'a4'); // Landscape para más espacio
+    const documento = new jsPDF('l', 'mm', 'a4');
 
-    // Título
-    doc.setFontSize(20);
-    doc.setFont(undefined, 'bold');
-    doc.text('INSCRIPTOS PROVISORIOS', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+    documento.setFontSize(20);
+    documento.setFont(undefined, 'bold');
+    documento.text('INSCRIPTOS PROVISORIOS', documento.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
 
-    // Fecha
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('es-AR');
-    const timeStr = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Generado: ${dateStr} - ${timeStr}`, doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
+    const ahora = new Date();
+    const fecha = ahora.toLocaleDateString('es-AR');
+    const hora = ahora.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
-    // Preparar datos por categoría
-    const categoriasInfo = {};
-    let colorIndexCounter = 0;
-    
-    inscriptosData.forEach(inscripto => {
-        const cat = inscripto.categoria;
-        if (!categoriasInfo[cat]) {
-            categoriasInfo[cat] = {
-                count: 1,
-                colorIndex: (colorIndexCounter % 8) + 1,
-                rows: []
-            };
-            colorIndexCounter++;
-        } else {
-            categoriasInfo[cat].count++;
-        }
-        categoriasInfo[cat].rows.push(inscripto);
-    });
+    documento.setFontSize(10);
+    documento.setFont(undefined, 'normal');
+    documento.text(`Generado: ${fecha} - ${hora}`, documento.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
 
-    // Generar tabla única con todas las categorías
-    let startY = 30;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const tableWidth = 260; // Ancho total de la tabla
-    const marginLeft = (pageWidth - tableWidth) / 2; // Centrar
-    
-    // Preparar datos completos con separadores de categoría
-    const allTableData = [];
-    
-    Object.keys(categoriasInfo).forEach((categoria, index) => {
+    const categoriasInfo = construirInfoCategorias();
+    const categoriasOrdenadas = Object.keys(categoriasInfo);
+    const anchoPagina = documento.internal.pageSize.getWidth();
+    const anchoTabla = 260;
+    const margenLateral = (anchoPagina - anchoTabla) / 2;
+    const filasTabla = [];
+
+    categoriasOrdenadas.forEach(categoria => {
         const info = categoriasInfo[categoria];
-        
-        // Agregar fila de categoría
-        allTableData.push([
-            { 
-                content: `CLASE: ${categoria} - INSCRIPTOS: ${info.count}`, 
-                colSpan: 4, 
-                styles: { 
-                    halign: 'center', 
-                    fillColor: [30, 64, 175],
-                    textColor: [255, 255, 255],
+
+        filasTabla.push([
+            {
+                content: `CLASE: ${categoria} - INSCRIPTOS: ${info.cantidad}`,
+                colSpan: 4,
+                styles: {
+                    halign: 'center',
+                    fillColor: obtenerColorPdfCategoria(categoria),
+                    textColor: [15, 23, 42],
                     fontStyle: 'bold',
                     fontSize: 11
-                } 
+                }
             }
         ]);
-        
-        // Agregar filas de inscriptos
-        info.rows.forEach(inscripto => {
-            allTableData.push([
+
+        info.filas.forEach(inscripto => {
+            filasTabla.push([
                 inscripto.numero || '-',
                 inscripto.nombre,
                 inscripto.vehiculo,
@@ -268,72 +322,68 @@ function exportToPDF() {
         });
     });
 
-    // Crear tabla única
-    doc.autoTable({
-        startY: startY,
-        head: [
-            ['Nº', 'Piloto', 'Vehículo', 'Categoría']
-        ],
-        body: allTableData,
-        theme: 'grid', // 'grid' agrega bordes a todas las celdas
+    documento.autoTable({
+        startY: 30,
+        head: [['Nº', 'Piloto', 'Vehículo', 'Categoría']],
+        body: filasTabla,
+        theme: 'grid',
         headStyles: {
-            fillColor: [30, 64, 175],
+            fillColor: [15, 23, 42],
             textColor: [255, 255, 255],
             fontStyle: 'bold',
             fontSize: 10,
             halign: 'center',
-            lineWidth: 0.3, // grosor del borde
-            lineColor: [0, 0, 0] // color del borde (negro)
+            lineWidth: 0.3,
+            lineColor: [60, 70, 86]
         },
         bodyStyles: {
             fontSize: 9,
             halign: 'center',
-            lineWidth: 0.3, // grosor del borde del body
-            lineColor: [150, 150, 150] // color del borde (gris)
+            lineWidth: 0.3,
+            lineColor: [150, 150, 150],
+            textColor: [22, 28, 37]
         },
         alternateRowStyles: {
             fillColor: [243, 244, 246]
         },
-        margin: { left: marginLeft, right: marginLeft },
-        tableWidth: tableWidth,
+        margin: { left: margenLateral, right: margenLateral },
+        tableWidth: anchoTabla,
         columnStyles: {
-            0: { cellWidth: 25, halign: 'center' }, // Nº - pequeña
-            1: { cellWidth: 80, halign: 'center' }, // Piloto - más ancha
-            2: { cellWidth: 110, halign: 'center' }, // Vehículo - más ancha
-            3: { cellWidth: 45, halign: 'center', textColor: [220, 38, 38], fontStyle: 'bold' } // Categoría - pequeña
+            0: { cellWidth: 25, halign: 'center' },
+            1: { cellWidth: 80, halign: 'center' },
+            2: { cellWidth: 110, halign: 'center' },
+            3: { cellWidth: 45, halign: 'center', textColor: [15, 23, 42], fontStyle: 'bold' }
         }
     });
 
-    // Footer en todas las páginas
-    const totalPages = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text(
-            `Total de pilotos: ${inscriptosData.length} - Página ${i} de ${totalPages}`,
-            doc.internal.pageSize.getWidth() / 2,
-            doc.internal.pageSize.getHeight() - 10,
+    const totalPaginas = documento.internal.getNumberOfPages();
+    for (let pagina = 1; pagina <= totalPaginas; pagina++) {
+        documento.setPage(pagina);
+        documento.setFontSize(8);
+        documento.setTextColor(100, 116, 139);
+        documento.text(
+            `Total de pilotos: ${inscriptosData.length} - Página ${pagina} de ${totalPaginas}`,
+            documento.internal.pageSize.getWidth() / 2,
+            documento.internal.pageSize.getHeight() - 10,
             { align: 'center' }
         );
     }
 
-    // Guardar PDF
-    doc.save(`inscriptos_${dateStr.replace(/\//g, '-')}.pdf`);
+    documento.save(`inscriptos_${fecha.replace(/\//g, '-')}.pdf`);
 }
 
 /* ==========================
    EVENT LISTENERS
 ========================== */
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const btnExportPDF = document.getElementById('btnExportPDF');
     if (btnExportPDF) {
-        btnExportPDF.addEventListener('click', exportToPDF);
+        btnExportPDF.addEventListener('click', exportarAPDF);
     }
 });
 
 /* ==========================
    EJECUCIÓN INICIAL
 ========================== */
-loadData();
-setInterval(loadData, 300000); // 5 minutos
+cargarDatos();
+setInterval(cargarDatos, 300000);

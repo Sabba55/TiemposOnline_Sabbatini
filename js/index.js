@@ -2,33 +2,19 @@ const TRAMOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti
 const PILOTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1122371230&single=true&output=csv';
 const RALLY_NAME_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1067104904&single=true&output=csv';
 const INSCRIPTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1217848665&single=true&output=csv';
+const { analizarCSV } = window.UtilidadesCSV;
+const { esDNF, tiempoASegundos, segundosATiempo: formatearSegundos } = window.UtilidadesTiempo;
+const { obtenerPeorTiempo, calcularTiempoDNF } = window.UtilidadesDNF;
 
 let tramosData = [];
 let pilotosData = [];
 let inscriptosData = [];
 
-function parseCSV(csv) {
-    const lines = csv.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-    const data = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
-        const obj = {};
-        headers.forEach((header, index) => {
-            obj[header] = values[index] || '';
-        });
-        data.push(obj);
-    }
-    
-    return data;
-}
-
-async function loadRallyName() {
+async function cargarNombreRally() {
     try {
         const response = await fetch(RALLY_NAME_URL);
         const text = await response.text();
-        const data = parseCSV(text);
+        const data = analizarCSV(text);
         
         if (data.length > 0 && data[0].Nombre && data[0].Nombre.trim() !== '') {
             const nombreRally = data[0].Nombre.trim();
@@ -40,73 +26,8 @@ async function loadRallyName() {
     }
 }
 
-function corregirFormatoTiempo(cadenaHora) {
-    if (!cadenaHora || cadenaHora === '') return '';
-    
-    let tiempo = cadenaHora.trim();
-    const separadores = (tiempo.match(/[:.,]/g) || []).length;
-    
-    if (separadores === 2) {
-        const partes = tiempo.split(/[:.,]/);
-        if (partes.length === 3) {
-            tiempo = `${partes[0]}:${partes[1]}.${partes[2]}`;
-        }
-    } else if (separadores === 1) {
-        tiempo = tiempo.replace(/[,]/, '.');
-    }
-    
-    return tiempo;
-}
-
-function esDNF(cadenaHora) {
-    if (!cadenaHora) return false;
-    const valorLimpio = cadenaHora.trim().toUpperCase();
-    return valorLimpio === 'DNF' || valorLimpio === 'D.N.F' || valorLimpio === 'D.N.F.';
-}
-
-function timeToSeconds(timeStr) {
-    if (!timeStr || timeStr === '') return 999999;
-    
-    if (esDNF(timeStr)) return 999999;
-    
-    timeStr = corregirFormatoTiempo(timeStr);
-    
-    const parts = timeStr.split(':');
-    if (parts.length === 2) {
-        return parseInt(parts[0]) * 60 + parseFloat(parts[1]);
-    } else if (parts.length === 3) {
-        return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2]);
-    }
-    return 999999;
-}
-
 function segundosATiempo(segundos) {
-    if (segundos >= 999999) return '-';
-    
-    const horas = Math.floor(segundos / 3600);
-    const minutos = Math.floor((segundos % 3600) / 60);
-    const segs = (segundos % 60).toFixed(2);
-    
-    if (horas > 0) {
-        return `${horas}:${String(minutos).padStart(2, '0')}:${String(segs).padStart(5, '0')}`;
-    }
-    return `${minutos}:${String(segs).padStart(5, '0')}`;
-}
-
-function obtenerPeorTiempoCategoria(pilotosCategoria) {
-    let peorTiempo = 0;
-    
-    pilotosCategoria.forEach(piloto => {
-        if (piloto.tiempoSegundos < 999999 && piloto.tiempoSegundos > peorTiempo) {
-            peorTiempo = piloto.tiempoSegundos;
-        }
-    });
-    
-    return peorTiempo;
-}
-
-function calcularTiempoDNF(peorTiempoCategoria) {
-    return peorTiempoCategoria + 60;
+    return formatearSegundos(segundos, 2);
 }
 
 function capitalizarTexto(texto) {
@@ -144,7 +65,7 @@ function obtenerGanadorPE(peNumber) {
     pilotosData.forEach(piloto => {
         const tiempo = piloto[ssColumn];
         if (tiempo && tiempo !== '') {
-            const segundos = timeToSeconds(tiempo);
+            const segundos = tiempoASegundos(tiempo);
             if (segundos < mejorTiempo) {
                 mejorTiempo = segundos;
                 mejorPiloto = {
@@ -214,7 +135,7 @@ function validarConsistenciaDatos() {
     return { valido: true };
 }
 
-async function loadData() {
+async function cargarDatos() {
     try {
         const [tramosResponse, pilotosResponse, inscriptosResponse] = await Promise.all([
             fetch(TRAMOS_URL),
@@ -226,9 +147,9 @@ async function loadData() {
         const pilotosText = await pilotosResponse.text();
         const inscriptosText = await inscriptosResponse.text();
         
-        tramosData = parseCSV(tramosText);
-        pilotosData = parseCSV(pilotosText);
-        inscriptosData = parseCSV(inscriptosText);
+        tramosData = analizarCSV(tramosText);
+        pilotosData = analizarCSV(pilotosText);
+        inscriptosData = analizarCSV(inscriptosText);
         
         const validacion = validarConsistenciaDatos();
         if (!validacion.valido) {
@@ -238,8 +159,8 @@ async function loadData() {
             return;
         }
         
-        renderMenu();
-        updateLastUpdate();
+        renderizarMenu();
+        actualizarUltimaActualizacion();
     } catch (error) {
         document.getElementById('content').innerHTML = 
             '<div class="error">⚠️ Error al cargar los datos. Por favor, verifica que la hoja de cálculo esté publicada correctamente.</div>';
@@ -247,7 +168,7 @@ async function loadData() {
     }
 }
 
-function renderMenu() {
+function renderizarMenu() {
     if (tramosData.length === 0) {
         document.getElementById('content').innerHTML = 
             '<div class="error">❌ No se encontraron datos de tramos.</div>';
@@ -291,7 +212,7 @@ function renderMenu() {
         let ganadorHTML = '-';
         if (ganador) {
             ganadorHTML = `
-                <div style="font-weight: 600; color: #1e40af; margin-bottom: 4px;">${ganador.nombre}</div>
+                <div style="font-weight: 600; color: #0f172a; margin-bottom: 4px;">${ganador.nombre}</div>
                 <div style="font-size: 12px; font-weight: 700; color: #404955;">
                     ${ganador.clase} | ${ganador.tiempo}
                 </div>
@@ -326,7 +247,7 @@ function renderMenu() {
 
     document.getElementById('content').innerHTML = html;
     
-    renderGanadoresFinales();
+    renderizarGanadoresFinales();
 }
 
 function verificarPEsCompletas() {
@@ -379,16 +300,16 @@ function calcularClasificacionGeneral(totalPEs) {
                         .map(p => {
                             const valorTiempo = p[columnaSS];
                             return {
-                                tiempoSegundos: timeToSeconds(valorTiempo),
+                                tiempoSegundos: tiempoASegundos(valorTiempo),
                                 tieneDNF: esDNF(valorTiempo)
                             };
                         })
                         .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
                     
-                    const peorTiempoTramo = obtenerPeorTiempoCategoria(pilotosEsteTramo);
+                    const peorTiempoTramo = obtenerPeorTiempo(pilotosEsteTramo);
                     totalSegundos += calcularTiempoDNF(peorTiempoTramo);
                 } else {
-                    const segundos = timeToSeconds(tiempo);
+                    const segundos = tiempoASegundos(tiempo);
                     if (segundos >= 999999) {
                         return null;
                     }
@@ -398,7 +319,7 @@ function calcularClasificacionGeneral(totalPEs) {
             
             if (!tieneDatos) return null;
             
-            const penalizacion = timeToSeconds(piloto.PENALIZACION || piloto.Penalizacion || '');
+            const penalizacion = tiempoASegundos(piloto.PENALIZACION || piloto.Penalizacion || '');
             const penalizacionSegundos = penalizacion < 999999 ? penalizacion : 0;
             const totalConPenalizacion = totalSegundos + penalizacionSegundos;
             
@@ -440,17 +361,17 @@ function calcularGanadorCategoria(categoria, totalPEs, clasificacionGeneral) {
                         .map(p => {
                             const valorTiempo = p[columnaSS];
                             return {
-                                tiempoSegundos: timeToSeconds(valorTiempo),
+                                tiempoSegundos: tiempoASegundos(valorTiempo),
                                 tieneDNF: esDNF(valorTiempo)
                             };
                         })
                         .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
                     
-                    const peorTiempoTramo = obtenerPeorTiempoCategoria(pilotosEsteTramo);
+                    const peorTiempoTramo = obtenerPeorTiempo(pilotosEsteTramo);
                     totalSegundos += calcularTiempoDNF(peorTiempoTramo);
                     tuvoDNF = true;
                 } else {
-                    const segundos = timeToSeconds(tiempo);
+                    const segundos = tiempoASegundos(tiempo);
                     if (segundos >= 999999) {
                         return null;
                     }
@@ -458,7 +379,7 @@ function calcularGanadorCategoria(categoria, totalPEs, clasificacionGeneral) {
                 }
             }
             
-            const penalizacion = timeToSeconds(piloto.PENALIZACION || piloto.Penalizacion || '');
+            const penalizacion = tiempoASegundos(piloto.PENALIZACION || piloto.Penalizacion || '');
             const penalizacionSegundos = penalizacion < 999999 ? penalizacion : 0;
             const totalConPenalizacion = totalSegundos + penalizacionSegundos;
             
@@ -481,7 +402,7 @@ function calcularGanadorCategoria(categoria, totalPEs, clasificacionGeneral) {
     return pilotosCategoria.length > 0 ? pilotosCategoria[0] : null;
 }
 
-function renderGanadoresFinales() {
+function renderizarGanadoresFinales() {
     if (!verificarPEsCompletas()) {
         return;
     }
@@ -531,13 +452,13 @@ function verGeneral(pe) {
     window.location.href = `pages/tramoGeneral.html?pe=${pe}`;
 }
 
-function updateLastUpdate() {
+function actualizarUltimaActualizacion() {
     const now = new Date();
     const timeStr = now.toLocaleTimeString('es-AR');
     document.getElementById('lastUpdate').textContent = 
-        `🔄 Última actualización: ${timeStr}`;
+        `Última actualización: ${timeStr}`;
 }
 
-loadRallyName();
-loadData();
-setInterval(loadData, 30000);
+cargarNombreRally();
+cargarDatos();
+setInterval(cargarDatos, 30000);

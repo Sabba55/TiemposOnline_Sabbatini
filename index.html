@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/index.css">
     <title>Pagina de tiempos - Sabbatini</title>
 </head>
@@ -11,8 +14,8 @@
     <div class="header-banner">
         <div class="header-content">
             <div class="header-title-wrapper">
-                <div class="header-title" id="rallyName">Pagina de tiempos - Sabbatini</div>
-                <div class="header-subtitle">Sistema de Seguimiento en Tiempo Real | Creado por Sabbatini Martin</div>
+                <h1 class="header-title" id="rallyName">Pagina de tiempos</h1>
+                <div class="header-subtitle">Sistema de seguimiento en tiempo real</div>
             </div>
             <div class="logo-container">
                 <img src="assets/logoSabbatini.png" alt="Rally Logo">
@@ -22,10 +25,10 @@
 
     <div class="container">
         <div class="buttonContainer">
-            <button class="btn-clases" onclick="window.location.href='pages/inscriptos.html'">
+            <button class="btn-clases-header" onclick="window.location.href='pages/inscriptos.html'">
                 INSCRIPTOS
             </button>
-            <button class="btn-clases" onclick="window.location.href='pages/ordenLargada.html'">
+            <button class="btn-clases-header" onclick="window.location.href='pages/ordenLargada.html'">
                 ORDEN DE LARGADA
             </button>
         </div>
@@ -33,19 +36,9 @@
         <div class="last-update" id="lastUpdate"></div>
     </div>
 
-    <!-- <div class="anuncio">
-        <script type="text/javascript">
-            atOptions = {
-                'key' : '43228b318a2a8ae3c5aa2d56930ee759',
-                'format' : 'iframe',
-                'height' : 90,
-                'width' : 728,
-                'params' : {}
-            };
-        </script>
-        <script type="text/javascript" src="//www.highperformanceformat.com/43228b318a2a8ae3c5aa2d56930ee759/invoke.js"></script>
-    </div> -->
-
+    <script src="/js/shared/csv.js"></script>
+    <script src="/js/shared/time.js"></script>
+    <script src="/js/shared/dnf.js"></script>
     <script src="/js/index.js"></script>
 </body>
 </html>

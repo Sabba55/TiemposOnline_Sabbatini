@@ -1,5 +1,9 @@
 const URL_PILOTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1122371230&single=true&output=csv';
 const URL_TRAMOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=0&single=true&output=csv';
+const { analizarCSV: analizarCSVBase } = window.UtilidadesCSV;
+const { esDNF, tiempoASegundos: convertirASegundos, segundosATiempo: convertirATiempo } = window.UtilidadesTiempo;
+const { obtenerPeorTiempo, calcularTiempoDNF } = window.UtilidadesDNF;
+const { obtenerRutaLogoMarca } = window.UtilidadesIconos;
 
 let datosPilotos = [];
 let datosTramos = [];
@@ -11,146 +15,49 @@ function obtenerParametroURL(parametro) {
 }
 
 function analizarCSV(csv) {
-    const lineas = csv.trim().split('\n');
-    const encabezados = lineas[0].split(',').map(e => e.trim());
-    const datos = [];
-    
-    for (let i = 1; i < lineas.length; i++) {
-        const linea = lineas[i].trim();
-        if (!linea) continue;
-        
-        const valores = lineas[i].split(',').map(v => v.trim());
-        const objeto = {};
-        encabezados.forEach((encabezado, indice) => {
-            objeto[encabezado] = valores[indice] || '';
-        });
-        
-        const nombre = objeto.Nombre || objeto.NOMBRE || '';
-        const categoria = objeto.Categoria || objeto.CATEGORIA || '';
-        
-        if (nombre && categoria) {
-            datos.push(objeto);
-        }
-    }
-    
-    return datos;
+    return analizarCSVBase(csv, {
+        filtrarFila: fila => Boolean((fila.Nombre || fila.NOMBRE) && (fila.Categoria || fila.CATEGORIA))
+    });
 }
 
 function analizarTramosCSV(csv) {
-    const lineas = csv.trim().split('\n');
-    const encabezados = lineas[0].split(',').map(e => e.trim());
-    const datos = [];
-    
-    for (let i = 1; i < lineas.length; i++) {
-        const linea = lineas[i].trim();
-        if (!linea) continue;
-        
-        const valores = lineas[i].split(',').map(v => v.trim());
-        const objeto = {};
-        encabezados.forEach((encabezado, indice) => {
-            objeto[encabezado] = valores[indice] || '';
-        });
-        
-        if (objeto.PE && objeto.PE !== '') {
-            datos.push(objeto);
-        }
-    }
-    
-    return datos;
-}
-
-function corregirFormatoTiempo(cadenaHora) {
-    if (!cadenaHora || cadenaHora === '') return '';
-    
-    let tiempo = cadenaHora.trim();
-    const separadores = (tiempo.match(/[:.,]/g) || []).length;
-    
-    if (separadores === 2) {
-        const partes = tiempo.split(/[:.,]/);
-        if (partes.length === 3) {
-            tiempo = `${partes[0]}:${partes[1]}.${partes[2]}`;
-        }
-    } else if (separadores === 1) {
-        tiempo = tiempo.replace(/[,]/, '.');
-    }
-    
-    return tiempo;
-}
-
-function esDNF(cadenaHora) {
-    if (!cadenaHora) return false;
-    const valorLimpio = cadenaHora.trim().toUpperCase();
-    return valorLimpio === 'DNF' || valorLimpio === 'D.N.F' || valorLimpio === 'D.N.F.';
+    return analizarCSVBase(csv, {
+        filtrarFila: fila => Boolean(fila.PE && fila.PE !== '')
+    });
 }
 
 function tiempoASegundos(cadenaHora) {
-    if (!cadenaHora || cadenaHora === '') return 999999;
-    
-    if (esDNF(cadenaHora)) return 999999;
-    
-    cadenaHora = corregirFormatoTiempo(cadenaHora);
-    
-    const partes = cadenaHora.split(':');
-    if (partes.length === 2) {
-        return parseInt(partes[0]) * 60 + parseFloat(partes[1]);
-    } else if (partes.length === 3) {
-        return parseInt(partes[0]) * 3600 + parseInt(partes[1]) * 60 + parseFloat(partes[2]);
-    }
-    return 999999;
+    return convertirASegundos(cadenaHora);
 }
 
 function segundosATiempo(segundos) {
-    if (segundos >= 999999) return '-';
-    
-    const horas = Math.floor(segundos / 3600);
-    const minutos = Math.floor((segundos % 3600) / 60);
-    const segs = (segundos % 60).toFixed(2);
-    
-    if (horas > 0) {
-        return `${horas}:${String(minutos).padStart(2, '0')}:${String(segs).padStart(5, '0')}`;
-    }
-    return `${minutos}:${String(segs).padStart(5, '0')}`;
+    return convertirATiempo(segundos, 2);
 }
 
 function segundosATiempoCompleto(segundos) {
-    if (segundos >= 999999) return '-';
-    
-    const horas = Math.floor(segundos / 3600);
-    const minutos = Math.floor((segundos % 3600) / 60);
-    const segs = (segundos % 60).toFixed(3);  // ← 3 decimales
-    
-    if (horas > 0) {
-        return `${horas}:${String(minutos).padStart(2, '0')}:${String(segs).padStart(6, '0')}`;
-    }
-    return `${minutos}:${String(segs).padStart(6, '0')}`;
+    return convertirATiempo(segundos, 3);
 }
 
 function formatearDiferencia(segundosDif) {
     if (segundosDif === 0) return '-';
-    const texto = segundosATiempo(segundosDif); 
-    // Truncar a 1 decimal: cortar después del primer dígito tras el punto
+    const texto = segundosATiempo(segundosDif);
     const truncado = texto.replace(/(\.\d)\d+/, '$1');
     return '+' + truncado;
 }
 
 function obtenerRutaLogo(vehiculo) {
-    if (!vehiculo) return null;
-    const marca = vehiculo.split(' ')[0].toLowerCase();
-    if (marca === 'skoda' && vehiculo.toLowerCase().includes('rs')) {
-        return '/assets/icon/skodars.png';
-    }
-    return `/assets/icon/${marca}.png`;
+    return obtenerRutaLogoMarca(vehiculo);
 }
 
 function calcularVelocidadPromedio(segundosTiempo, distanciaKm) {
     if (segundosTiempo >= 999999 || !distanciaKm || distanciaKm === '') return '-';
-    
+
     const distancia = parseFloat(distanciaKm);
     if (isNaN(distancia) || distancia <= 0) return '-';
-    
+
     const tiempoHoras = segundosTiempo / 3600;
     const velocidad = distancia / tiempoHoras;
-    
+
     return velocidad.toFixed(0);
 }
 
@@ -162,17 +69,17 @@ async function cargarDatos() {
             fetch(URL_PILOTOS + cacheBuster),
             fetch(URL_TRAMOS + cacheBuster)
         ]);
-        
+
         const textoPilotos = await respuestaPilotos.text();
         const textoTramos = await respuestaTramos.text();
-        
+
         datosPilotos = analizarCSV(textoPilotos);
         datosTramos = analizarTramosCSV(textoTramos);
-        
+
         renderizarResultados();
         actualizarUltimaActualizacion();
     } catch (error) {
-        document.getElementById('content').innerHTML = 
+        document.getElementById('content').innerHTML =
             '<div class="error">Error al cargar los datos.</div>';
         console.error('Error:', error);
     }
@@ -180,59 +87,43 @@ async function cargarDatos() {
 
 function calcularTotalAcumulado(piloto, hastaPE) {
     let totalSegundos = 0;
-    
+
     for (let i = 1; i <= hastaPE; i++) {
         const columnaSS = `SS${i}`;
         const tiempo = piloto[columnaSS];
-        
+
         if (!tiempo || tiempo === '') {
             return 999999;
         }
-        
+
         const segundos = tiempoASegundos(tiempo);
-        
+
         if (segundos >= 999999) {
             return 999999;
         }
-        
+
         totalSegundos += segundos;
     }
-    
+
     return totalSegundos;
-}
-
-function obtenerPeorTiempoCategoria(pilotosCategoria) {
-    let peorTiempo = 0;
-    
-    pilotosCategoria.forEach(piloto => {
-        if (piloto.tiempoSegundos < 999999 && piloto.tiempoSegundos > peorTiempo) {
-            peorTiempo = piloto.tiempoSegundos;
-        }
-    });
-    
-    return peorTiempo;
-}
-
-function calcularTiempoDNF(peorTiempoCategoria) {
-    return peorTiempoCategoria + 60;
 }
 
 function calcularPosicionesAnterior(categoria, numeroPEInt) {
     if (numeroPEInt <= 1) return {};
-    
+
     const pilotosAnterior = datosPilotos
         .filter(p => (p.Categoria || p.CATEGORIA) === categoria)
         .map(p => {
             let totalSegundos = 0;
-            
+
             for (let i = 1; i < numeroPEInt; i++) {
                 const columnaSS = `SS${i}`;
                 const tiempo = p[columnaSS];
-                
+
                 if (!tiempo || tiempo === '') {
                     return null;
                 }
-                
+
                 if (esDNF(tiempo)) {
                     const pilotosEsteTramo = datosPilotos
                         .filter(piloto => (piloto.Categoria || piloto.CATEGORIA) === categoria && piloto[columnaSS])
@@ -244,8 +135,8 @@ function calcularPosicionesAnterior(categoria, numeroPEInt) {
                             };
                         })
                         .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
-                    
-                    const peorTiempoTramo = obtenerPeorTiempoCategoria(pilotosEsteTramo);
+
+                    const peorTiempoTramo = obtenerPeorTiempo(pilotosEsteTramo);
                     totalSegundos += calcularTiempoDNF(peorTiempoTramo);
                 } else {
                     const segundos = tiempoASegundos(tiempo);
@@ -255,11 +146,11 @@ function calcularPosicionesAnterior(categoria, numeroPEInt) {
                     totalSegundos += segundos;
                 }
             }
-            
+
             const penalizacion = tiempoASegundos(p.PENALIZACION || p.Penalizacion || '');
             const penalizacionSegundos = penalizacion < 999999 ? penalizacion : 0;
             const totalConPenalizacion = totalSegundos + penalizacionSegundos;
-            
+
             return {
                 nombre: p.Nombre || p.NOMBRE || '',
                 totalConPenalizacion: totalConPenalizacion
@@ -267,78 +158,104 @@ function calcularPosicionesAnterior(categoria, numeroPEInt) {
         })
         .filter(p => p !== null)
         .sort((a, b) => a.totalConPenalizacion - b.totalConPenalizacion);
-    
+
     const posiciones = {};
     pilotosAnterior.forEach((piloto, indice) => {
         posiciones[piloto.nombre] = indice + 1;
     });
-    
+
     return posiciones;
+}
+
+function obtenerNombreTramo(tramoActual) {
+    if (!tramoActual) return '';
+
+    const desde = tramoActual.Desde || '';
+    const hasta = tramoActual.Hasta || '';
+
+    if (desde && hasta) {
+        return `${desde} - ${hasta}`;
+    }
+
+    return tramoActual.Nombre || tramoActual.NOMBRE || '';
+}
+
+function obtenerPrioridadCategoria(categoria) {
+    const categoriaNormalizada = (categoria || '').trim().toUpperCase();
+
+    if (categoriaNormalizada === 'RC2' || categoriaNormalizada === 'RALLY2') {
+        return 0;
+    }
+
+    if (categoriaNormalizada === 'RCMR') {
+        return 1;
+    }
+
+    return 2;
+}
+
+function ordenarCategorias(categorias) {
+    return [...categorias].sort((a, b) => {
+        const prioridadA = obtenerPrioridadCategoria(a);
+        const prioridadB = obtenerPrioridadCategoria(b);
+
+        if (prioridadA !== prioridadB) {
+            return prioridadA - prioridadB;
+        }
+
+        return a.localeCompare(b, 'es');
+    });
 }
 
 function mostrarInfoTramo() {
     numeroPE = obtenerParametroURL('pe');
     const tramoActual = datosTramos.find(t => t.PE === numeroPE);
-    
+    const tituloElement = document.getElementById('title');
+
     if (tramoActual) {
-        const desde = tramoActual.Desde || '';
-        const hasta = tramoActual.Hasta || '';
-        const kms = tramoActual.KMS || '';
-        const hora = tramoActual.HORA || '';
-        
-        let nombreTramo = '';
-        if (desde && hasta) {
-            nombreTramo = `${desde} - ${hasta}`;
+        const nombreTramo = obtenerNombreTramo(tramoActual);
+
+        if (tituloElement) {
+            tituloElement.innerHTML = `
+                <span class="titulo-tramo-pe">PE ${numeroPE}</span>
+                <span class="titulo-tramo-texto">| ${nombreTramo}</span>
+            `;
         }
-        
-        let detallesHTML = '';
-        if (kms) {
-            detallesHTML += `<span class="tramo-detail-item"><strong>Distancia:</strong> ${kms} km</span>`;
-        }
-        if (hora) {
-            detallesHTML += `<span class="tramo-detail-item"><strong>Hora:</strong> ${hora}</span>`;
-        }
-        
-        const divInfoTramo = document.getElementById('tramoInfo');
-        divInfoTramo.innerHTML = `
-            <div>${nombreTramo}</div>
-            ${detallesHTML ? `<div class="tramo-details">${detallesHTML}</div>` : ''}
-        `;
-        divInfoTramo.style.display = 'block';
+    } else if (tituloElement) {
+        tituloElement.textContent = `RESULTADOS - PE ${numeroPE}`;
     }
 }
 
 function renderizarResultados() {
     numeroPE = obtenerParametroURL('pe');
     const numeroPEInt = parseInt(numeroPE);
-    document.getElementById('title').textContent = `RESULTADOS - PE ${numeroPE}`;
-    
+
     mostrarInfoTramo();
 
     if (datosPilotos.length === 0) {
-        document.getElementById('content').innerHTML = 
-            '<div class="error">⚠ No se encontraron datos de pilotos.</div>';
+        document.getElementById('content').innerHTML =
+            '<div class="error">âš  No se encontraron datos de pilotos.</div>';
         return;
     }
 
     const columnaSSActual = `SS${numeroPE}`;
     const tramoActual = datosTramos.find(t => t.PE === numeroPE);
     const distanciaTramo = tramoActual ? tramoActual.KMS : null;
-    
-    const categorias = [...new Set(datosPilotos.map(p => p.Categoria || p.CATEGORIA))].filter(c => c).sort();
+
+    const categorias = ordenarCategorias(
+        [...new Set(datosPilotos.map(p => p.Categoria || p.CATEGORIA))].filter(c => c)
+    );
 
     let htmlCompleto = '';
 
-    // Procesar cada categoría
     categorias.forEach(categoria => {
-        // Datos PE
         const pilotosCategoria = datosPilotos
             .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[columnaSSActual])
             .map(p => {
                 const totalAcumulado = calcularTotalAcumulado(p, numeroPEInt);
                 const valorTiempo = p[columnaSSActual];
                 const tieneDNF = esDNF(valorTiempo);
-                
+
                 return {
                     nombre: p.Nombre || p.NOMBRE || '',
                     categoria: categoria,
@@ -350,23 +267,22 @@ function renderizarResultados() {
             })
             .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
 
-        // Datos General
         const posicionesAnterior = calcularPosicionesAnterior(categoria, numeroPEInt);
-        
+
         const pilotosGeneralCategoria = datosPilotos
             .filter(p => (p.Categoria || p.CATEGORIA) === categoria)
             .map(p => {
                 let totalSegundos = 0;
                 let tuvoDNF = false;
-                
+
                 for (let i = 1; i <= numeroPEInt; i++) {
                     const columnaSS = `SS${i}`;
                     const tiempo = p[columnaSS];
-                    
+
                     if (!tiempo || tiempo === '') {
                         return null;
                     }
-                    
+
                     if (esDNF(tiempo)) {
                         const pilotosEsteTramo = datosPilotos
                             .filter(piloto => (piloto.Categoria || piloto.CATEGORIA) === categoria && piloto[columnaSS])
@@ -378,8 +294,8 @@ function renderizarResultados() {
                                 };
                             })
                             .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
-                        
-                        const peorTiempoTramo = obtenerPeorTiempoCategoria(pilotosEsteTramo);
+
+                        const peorTiempoTramo = obtenerPeorTiempo(pilotosEsteTramo);
                         totalSegundos += calcularTiempoDNF(peorTiempoTramo);
                         tuvoDNF = true;
                     } else {
@@ -390,11 +306,11 @@ function renderizarResultados() {
                         totalSegundos += segundos;
                     }
                 }
-                
+
                 const penalizacion = tiempoASegundos(p.PENALIZACION || p.Penalizacion || '');
                 const penalizacionSegundos = penalizacion < 999999 ? penalizacion : 0;
                 const totalConPenalizacion = totalSegundos + penalizacionSegundos;
-                
+
                 return {
                     nombre: p.Nombre || p.NOMBRE || '',
                     vehiculo: p.Vehiculo || p.VEHICULO || p.vehiculo || '',
@@ -410,8 +326,7 @@ function renderizarResultados() {
 
         if (pilotosCategoria.length === 0 && pilotosGeneralCategoria.length === 0) return;
 
-        // Calcular DNF para PE
-        const peorTiempoCategoria = obtenerPeorTiempoCategoria(pilotosCategoria);
+        const peorTiempoCategoria = obtenerPeorTiempo(pilotosCategoria);
         pilotosCategoria.forEach(piloto => {
             if (piloto.tieneDNF) {
                 piloto.tiempoSegundos = calcularTiempoDNF(peorTiempoCategoria);
@@ -423,13 +338,10 @@ function renderizarResultados() {
         const mejorTiempo = pilotosCategoria.length > 0 ? pilotosCategoria[0].tiempoSegundos : 0;
         const mejorTotal = pilotosGeneralCategoria.length > 0 ? pilotosGeneralCategoria[0].totalConPenalizacion : 0;
 
-        // Construir HTML para esta categoría
         htmlCompleto += `
             <div class="categoria-completa mb-5">
                 <h3 class="text-center categoria-titulo">${categoria}</h3>
                 <div class="d-flex justify-content-between gap-4">
-                    
-                    <!-- CLASIFICACIÓN P.E. -->
                     <div class="tabla-pe-container flex-grow-1">
                         <h4 class="subtitulo-seccion text-center">Clasificación P.E.</h4>
                         <div class="table-wrapper">
@@ -478,7 +390,6 @@ function renderizarResultados() {
                         </div>
                     </div>
 
-                    <!-- CLASIFICACIÓN GENERAL -->
                     <div class="tabla-general-container flex-grow-1">
                         <h4 class="text-center subtitulo-seccion">Clasificación General</h4>
                         <div class="table-wrapper">
@@ -508,7 +419,7 @@ function renderizarResultados() {
             pilotosGeneralCategoria.forEach((piloto, indice) => {
                 const posicionActual = indice + 1;
                 const posicionAnterior = posicionesAnterior[piloto.nombre];
-                
+
                 let indicadorHTML = '';
                 if (posicionAnterior && numeroPEInt > 1) {
                     const cambio = posicionAnterior - posicionActual;
@@ -518,21 +429,21 @@ function renderizarResultados() {
                         indicadorHTML = `<div class="position-change position-down"><i class="fa-solid fa-arrow-down"></i> ${cambio}</div>`;
                     }
                 }
-                
+
                 const dif1 = piloto.totalConPenalizacion - mejorTotal;
                 const difAnt = indice > 0 ? piloto.totalConPenalizacion - pilotosGeneralCategoria[indice - 1].totalConPenalizacion : 0;
                 const claseFila = indice === 0 ? 'pos-1' : (piloto.tieneDNF ? 'fila-dnf' : '');
-                
+
                 const tiempoFormateado = segundosATiempoCompleto(piloto.totalSegundos);
                 const penalizFormateada = piloto.penalizacionSegundos > 0 ? segundosATiempo(piloto.penalizacionSegundos) : '-';
-                const totalFormateado  = segundosATiempoCompleto(piloto.totalConPenalizacion);
+                const totalFormateado = segundosATiempoCompleto(piloto.totalConPenalizacion);
                 const clasePenaliz = piloto.penalizacionSegundos > 0 ? 'penalizacion-activa' : '';
                 const rutaLogo = obtenerRutaLogo(piloto.vehiculo);
                 const marca = piloto.vehiculo ? piloto.vehiculo.split(' ')[0] : '-';
 
                 htmlCompleto += `
                     <tr class="${claseFila}">
-                        <td>
+                        <td class="col-pos">
                             <div class="position-cell">
                                 <strong>${posicionActual}</strong>
                                 ${indicadorHTML}
@@ -540,7 +451,7 @@ function renderizarResultados() {
                         </td>
                         <td>${piloto.nombre}</td>
                         <td>
-                            ${rutaLogo 
+                            ${rutaLogo
                                 ? `<img src="${rutaLogo}" alt="${marca}" style="height:20px; object-fit:contain;"
                                     onerror="this.onerror=null; this.replaceWith(document.createTextNode('${marca}'))">`
                                 : marca
@@ -572,10 +483,9 @@ function renderizarResultados() {
 function actualizarUltimaActualizacion() {
     const ahora = new Date();
     const horaTexto = ahora.toLocaleTimeString('es-AR');
-    document.getElementById('lastUpdate').textContent = 
-        `🔄 Última actualización: ${horaTexto}`;
+    document.getElementById('lastUpdate').textContent =
+        `Última actualización: ${horaTexto}`;
 }
 
-// Inicializar
 cargarDatos();
 setInterval(cargarDatos, 30000);

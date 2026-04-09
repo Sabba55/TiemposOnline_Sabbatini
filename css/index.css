@@ -4,14 +4,33 @@
     box-sizing: border-box;
 }
 
+:root {
+    --color-grafito-950: #111315;
+    --color-grafito-900: #1a1d21;
+    --color-grafito-800: #232830;
+    --color-grafito-700: #303743;
+    --color-azul-principal: #0f172a;
+    --color-azul-principal-hover: #1b263b;
+    --color-azul-secundario: #1e293b;
+    --color-panel: #f4f6f8;
+    --color-panel-brillo: #ffffff;
+    --color-borde: #3c4656;
+    --color-borde-suave: #d7dde5;
+    --color-texto: #161c25;
+    --color-texto-suave: #5a6472;
+    --color-texto-claro: #e8edf3;
+    --color-ganador: #0f172a;
+    --color-ganador-suave: #dce3ee;
+    --color-error: #a61b1b;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(30, 58, 138, 0.85)), 
+    background: linear-gradient(rgba(17, 19, 21, 0.9), rgba(15, 23, 42, 0.88)),
                 url('https://images.unsplash.com/photo-1612885852854-e2b8ea2f34e7?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1033') center/cover fixed;
     min-height: 100vh;
     padding: 0;
     padding-top: 100px;
-    max-width: 1300px;
     min-width: 1300px;
 }
 
@@ -20,12 +39,13 @@ body {
     flex-direction: column;
     align-items: center;
     max-width: 1200px;
-    min-width: 1200px;
+    /* min-width: 1200px; */
     margin: 30px auto;
-    background: white;
+    background: rgba(255, 255, 255, 0.925);
     border-radius: 20px;
     padding: 30px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    border: 1px solid rgba(215, 221, 229, 0.9);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
 }
 
 .buttonContainer {
@@ -35,9 +55,11 @@ body {
 }
 
 .header-banner {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(26, 29, 33, 0.98) 100%);
     padding: 20px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
     position: fixed;
     top: 0;
     left: 0;
@@ -75,27 +97,22 @@ body {
 }
 
 .header-title {
-    color: white;
+    font-family: 'Orbitron', serif;
+    color: var(--color-texto-claro);
     font-size: 32px;
-    font-weight: 700;
-    letter-spacing: 1px;
+    font-weight: 800;
+    letter-spacing: 1.4px;
     text-transform: uppercase;
+    margin: 0;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
 }
 
 .header-subtitle {
-    color: #94a3b8;
+    color: #aab4c4;
     font-size: 14px;
-    font-weight: 400;
-    margin-top: 4px;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 30px auto;
-    background: white;
-    border-radius: 20px;
-    padding: 30px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    font-weight: 500;
+    margin-top: 6px;
+    letter-spacing: 0.4px;
 }
 
 .anuncio {
@@ -107,7 +124,7 @@ body {
     text-align: center;
     padding: 10px 20px;
     font-size: 18px;
-    color: #333;
+    color: var(--color-texto);
 }
 
 .loading::after {
@@ -126,24 +143,25 @@ table {
     min-width: 1000px;
     border-collapse: collapse;
     margin-top: 20px;
-    border: 2px solid #1e40af;
+    border: 2px solid var(--color-azul-principal);
     border-radius: 12px;
     overflow: hidden;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
 }
 
 thead {
-    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
 }
 
 th {
-    color: white;
+    color: var(--color-texto-claro);
     padding: 16px 12px;
     text-align: center;
     font-weight: 600;
     text-transform: uppercase;
     font-size: 13px;
     letter-spacing: 0.5px;
-    border-right: 2px solid #1e40af;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 th:last-child {
@@ -153,11 +171,11 @@ th:last-child {
 td {
     padding: 16px 12px;
     text-align: center;
-    border-bottom: 2px solid #e5e7eb;
-    border-right: 2px solid #e5e7eb;
-    background-color: #fff;
+    border-bottom: 1px solid var(--color-borde-suave);
+    border-right: 1px solid var(--color-borde-suave);
+    background-color: var(--color-panel-brillo);
     transition: all 0.3s ease;
-    color: #1f2937;
+    color: var(--color-texto);
 }
 
 td:last-child {
@@ -173,14 +191,41 @@ tbody tr {
 }
 
 tbody tr:hover {
-    background-color: #eff6ff;
+    background-color: #e9edf2;
 }
 
 .btn-clases {
-    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
+    color: var(--color-texto-claro);
     border: none;
-    padding: 10px 20px;
+    padding: 12px 10px;
+    cursor: pointer;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
+    width: 100%;
+    display: block
+    
+}
+
+.btn-clases:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.36);
+    background: linear-gradient(135deg, var(--color-azul-principal-hover) 0%, var(--color-grafito-700) 100%);
+}
+
+.btn-clases:active {
+    transform: translateY(0);
+}
+
+.btn-clases-header {
+    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
+    color: var(--color-texto-claro);
+    border: none;
+    padding: 15px 20px;
     cursor: pointer;
     border-radius: 8px;
     font-size: 13px;
@@ -188,66 +233,66 @@ tbody tr:hover {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
     width: 100%;
     display: block;
+    font-family: 'Orbitron', serif;
 }
 
-.btn-clases:hover {
+.btn-clases-header:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(30, 58, 138, 0.5);
-    background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.36);
+    background: linear-gradient(135deg, var(--color-azul-principal-hover) 0%, var(--color-grafito-700) 100%);
 }
 
-.btn-clases:active {
+.btn-clases-header:active {
     transform: translateY(0);
 }
 
 .error {
-    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    background: linear-gradient(135deg, var(--color-error) 0%, #c62828 100%);
     color: white;
     padding: 20px;
     border-radius: 12px;
     text-align: center;
     margin: 20px 0;
-    box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
+    box-shadow: 0 8px 18px rgba(166, 27, 27, 0.24);
 }
 
 .last-update {
     text-align: center;
-    color: #334155;
+    color: var(--color-texto-suave);
     font-size: 13px;
     padding: 15px;
-    background: #f1f5f9;
-    border-radius: 8px;
     display: inline-block;
     width: 100%;
 }
 
 .pe-number {
-    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
+    color: var(--color-texto-claro);
     padding: 6px 12px;
     border-radius: 8px;
     font-weight: 700;
     display: inline-block;
-    font-size: 16px;
+    font-size: 15px;
+    font-family: 'Orbitron', serif;
 }
 
 .ganador-cell {
     font-weight: 600;
-    color: #1e40af;
+    color: var(--color-ganador);
 }
 
 .ganador-tiempo {
     font-size: 12px;
     font-weight: 700;
-    color: #404955;
+    color: var(--color-texto-suave);
     display: block;
     margin-top: 2px;
 }
 
-@media (max-width: 768px) {
+/* @media (max-width: 768px) {
     body {
         padding-top: 90px;
     }
@@ -260,22 +305,41 @@ tbody tr:hover {
         padding: 8px 12px;
         font-size: 11px;
     }
-}
+} */
 
 /* Estilos para Ganadores Finales */
 .ganadores-finales-container {
     padding-top: 30px;
-    border-top: 3px solid #e5e7eb;
+    border-top: 2px solid var(--color-borde-suave);
 }
 
 .ganadores-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
     text-align: center;
+    font-family: 'Orbitron', serif;
     font-size: 25px;
-    font-weight: 700;
-    color: #1e40af;
+    font-weight: 800;
+    color: var(--color-azul-principal);
     margin-bottom: 30px;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
+}
+
+.ganadores-title::before,
+.ganadores-title::after {
+    content: '';
+    flex: 1;
+    max-width: 240px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, var(--color-borde) 100%);
+    opacity: 0.85;
+}
+
+.ganadores-title::after {
+    background: linear-gradient(90deg, var(--color-borde) 0%, transparent 100%);
 }
 
 .ganadores-grid {
@@ -286,12 +350,12 @@ tbody tr:hover {
 }
 
 .ganador-card {
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-    border: 3px solid #1e40af;
+    background: linear-gradient(145deg, #ffffff 0%, #edf1f5 100%);
+    border: 2px solid var(--color-borde);
     border-radius: 16px;
     padding: 15px;
     text-align: center;
-    box-shadow: 0 8px 24px rgba(30, 64, 175, 0.15);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
@@ -304,14 +368,14 @@ tbody tr:hover {
     left: 0;
     right: 0;
     height: 6px;
-    background: linear-gradient(90deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%);
+    background: linear-gradient(90deg, var(--color-grafito-800) 0%, var(--color-azul-principal) 50%, var(--color-grafito-700) 100%);
 }
 
 .ganador-categoria {
-    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
+    color: var(--color-texto-claro);
     padding: 8px 16px;
-    border-radius: 20px;
+    border-radius: 10px;
     font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
@@ -323,7 +387,7 @@ tbody tr:hover {
 .ganador-nombre {
     font-size: 20px;
     font-weight: 700;
-    color: #1e40af;
+    color: var(--color-ganador);
     margin-bottom: 10px;
     line-height: 1.3;
 }
@@ -333,7 +397,7 @@ tbody tr:hover {
     grid-template-columns: 1fr 1fr;
     gap: 10px;
     padding-top: 10px;
-    border-top: 2px solid #e5e7eb;
+    border-top: 1px solid var(--color-borde-suave);
 }
 
 .ganador-tiempo-total,
@@ -346,7 +410,7 @@ tbody tr:hover {
 .tiempo-label {
     font-size: 11px;
     font-weight: 600;
-    color: #64748b;
+    color: var(--color-texto-suave);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -354,5 +418,5 @@ tbody tr:hover {
 .tiempo-valor {
     font-size: 16px;
     font-weight: 700;
-    color: #1f2937;
+    color: var(--color-texto);
 }

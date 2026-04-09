@@ -1,55 +1,32 @@
 const ORDENLARGADA_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1217848665&single=true&output=csv';
+const { analizarCSV } = window.UtilidadesCSV;
 
 let ordenLargadaData = [];
 let intervaloContador = null;
 
-function parseCSV(csv) {
-    const lines = csv.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-    const data = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        
-        const values = lines[i].split(',').map(v => v.trim());
-        const obj = {};
-        headers.forEach((header, index) => {
-            obj[header] = values[index] || '';
-        });
-        
-        const nombre = obj.Nombre || obj.NOMBRE || '';
-        const categoria = obj.Categoria || obj.CATEGORIA || '';
-        
-        if (nombre && categoria) {
-            data.push(obj);
-        }
-    }
-    
-    return data;
-}
-
-async function loadData() {
+async function cargarDatos() {
     try {
         const cacheBuster = `&t=${Date.now()}`;
         const response = await fetch(ORDENLARGADA_URL + cacheBuster);
         const text = await response.text();
-        
-        ordenLargadaData = parseCSV(text);
-        
-        renderOrdenLargada();
+
+        ordenLargadaData = analizarCSV(text, {
+            filtrarFila: fila => Boolean((fila.Nombre || fila.NOMBRE) && (fila.Categoria || fila.CATEGORIA))
+        });
+
+        renderizarOrdenLargada();
         actualizarContadorProximaLargada();
-        updateLastUpdate();
+        actualizarUltimaActualizacion();
     } catch (error) {
-        document.getElementById('content').innerHTML = 
-            '<div class="error">⚠️ Error al cargar los datos. Por favor, verifica que la hoja de cálculo esté publicada correctamente.</div>';
+        document.getElementById('content').innerHTML =
+            '<div class="error">âš ï¸ Error al cargar los datos. Por favor, verifica que la hoja de cÃ¡lculo estÃ© publicada correctamente.</div>';
         console.error('Error:', error);
     }
 }
 
 function obtenerColumnasSS() {
     if (ordenLargadaData.length === 0) return [];
-    
+
     const primeraFila = ordenLargadaData[0];
     const columnasSS = Object.keys(primeraFila)
         .filter(key => key.match(/^SS\d+$/))
@@ -58,16 +35,16 @@ function obtenerColumnasSS() {
             const numB = parseInt(b.replace('SS', ''));
             return numA - numB;
         });
-    
+
     return columnasSS;
 }
 
 function convertirHorarioAMinutos(horario) {
     if (!horario || horario === '-') return Infinity;
-    
+
     const match = horario.match(/(\d{1,2}):(\d{2})/);
     if (!match) return Infinity;
-    
+
     const horas = parseInt(match[1]);
     const minutos = parseInt(match[2]);
     return horas * 60 + minutos;
@@ -75,7 +52,7 @@ function convertirHorarioAMinutos(horario) {
 
 function obtenerHorarioMasTemplano(piloto, columnasSS) {
     let minTiempo = Infinity;
-    
+
     columnasSS.forEach(ss => {
         const horario = piloto[ss];
         const tiempo = convertirHorarioAMinutos(horario);
@@ -83,7 +60,7 @@ function obtenerHorarioMasTemplano(piloto, columnasSS) {
             minTiempo = tiempo;
         }
     });
-    
+
     return minTiempo;
 }
 
@@ -91,29 +68,28 @@ function formatearTiempoRestante(minutos) {
     if (minutos < 60) {
         return `${minutos} minutos`;
     }
-    
+
     const horas = Math.floor(minutos / 60);
     const minutosRestantes = minutos % 60;
-    
+
     if (minutosRestantes === 0) {
-        return horas === 1 ? `1 hora` : `${horas} horas`;
+        return horas === 1 ? '1 hora' : `${horas} horas`;
     }
-    
+
     const textoHoras = horas === 1 ? '1 hora' : `${horas} horas`;
     return `${textoHoras} y ${minutosRestantes} minutos`;
 }
 
 function encontrarProximasLargadas() {
     if (ordenLargadaData.length === 0) return [];
-    
+
     const ahora = new Date();
     const tiempoActualEnMinutos = ahora.getHours() * 60 + ahora.getMinutes();
     const columnasSS = obtenerColumnasSS();
-    
+
     let menorDiferencia = Infinity;
     let candidatos = [];
 
-    // Primero encontramos la menor diferencia
     ordenLargadaData.forEach(piloto => {
         columnasSS.forEach(ss => {
             const tiempoLargada = convertirHorarioAMinutos(piloto[ss]);
@@ -128,11 +104,10 @@ function encontrarProximasLargadas() {
 
     if (menorDiferencia === Infinity) return [];
 
-    // Luego recolectamos TODOS los que tienen esa misma diferencia
     ordenLargadaData.forEach(piloto => {
         const nombre = piloto.Nombre || piloto.NOMBRE || '';
         const categoria = piloto.Categoria || piloto.CATEGORIA || '';
-        
+
         columnasSS.forEach(ss => {
             const tiempoLargada = convertirHorarioAMinutos(piloto[ss]);
             if (tiempoLargada !== Infinity) {
@@ -156,9 +131,9 @@ function encontrarProximasLargadas() {
 function actualizarContadorProximaLargada() {
     const proximasLargadas = encontrarProximasLargadas();
     const containerContador = document.getElementById('proximaLargadaContainer');
-    
+
     if (proximasLargadas.length === 0) {
-        containerContador.innerHTML = '<div class="sin-largadas">🏁 No hay largadas programadas próximamente</div>';
+        containerContador.innerHTML = '<div class="sin-largadas">ðŸ No hay largadas programadas prÃ³ximamente</div>';
         return;
     }
 
@@ -167,22 +142,21 @@ function actualizarContadorProximaLargada() {
 
     let estadoTexto = '';
     let estadoClass = '';
-    
+
     if (minutosRestantes === 0) {
-        estadoTexto = '¡LARGANDO AHORA!';
+        estadoTexto = 'Â¡LARGANDO AHORA!';
         estadoClass = 'largando-ahora';
     } else if (minutosRestantes <= 5) {
-        estadoTexto = `Próxima largada en ${minutosRestantes} min ${segundosRestantes}s`;
+        estadoTexto = `PrÃ³xima largada en ${minutosRestantes} min ${segundosRestantes}s`;
         estadoClass = 'urgente';
     } else if (minutosRestantes <= 15) {
-        estadoTexto = `Próxima largada en ${formatearTiempoRestante(minutosRestantes)}`;
+        estadoTexto = `PrÃ³xima largada en ${formatearTiempoRestante(minutosRestantes)}`;
         estadoClass = 'cercana';
     } else {
-        estadoTexto = `Próxima largada en ${formatearTiempoRestante(minutosRestantes)}`;
+        estadoTexto = `PrÃ³xima largada en ${formatearTiempoRestante(minutosRestantes)}`;
         estadoClass = 'normal';
     }
 
-    // Construir info de cada piloto
     const pilotosHTML = proximasLargadas.map(p => `
         <div class="info-piloto">
             <div class="info-item">
@@ -190,7 +164,7 @@ function actualizarContadorProximaLargada() {
                 <span class="valor nombre">${p.nombre}</span>
             </div>
             <div class="info-item">
-                <span class="label">Categoría:</span>
+                <span class="label">CategorÃ­a:</span>
                 <span class="valor">${p.categoria}</span>
             </div>
             <div class="info-item">
@@ -217,22 +191,21 @@ function actualizarContadorProximaLargada() {
     `;
 }
 
-function renderOrdenLargada() {
+function renderizarOrdenLargada() {
     if (ordenLargadaData.length === 0) {
-        document.getElementById('content').innerHTML = 
-            '<div class="error">❌ No se encontraron ordenes de largadas.</div>';
+        document.getElementById('content').innerHTML =
+            '<div class="error">âŒ No se encontraron ordenes de largadas.</div>';
         return;
     }
 
     const columnasSS = obtenerColumnasSS();
-    
+
     const datosOrdenados = [...ordenLargadaData].sort((a, b) => {
         const tiempoA = obtenerHorarioMasTemplano(a, columnasSS);
         const tiempoB = obtenerHorarioMasTemplano(b, columnasSS);
         return tiempoA - tiempoB;
     });
 
-    // Obtener hora actual para comparar (minuto exacto)
     const ahora = new Date();
     const tiempoActualEnMinutos = ahora.getHours() * 60 + ahora.getMinutes();
 
@@ -244,7 +217,7 @@ function renderOrdenLargada() {
                         <tr>
                             <th>#</th>
                             <th>Piloto</th>
-                            <th>Categoría</th>
+                            <th>CategorÃ­a</th>
     `;
 
     columnasSS.forEach(ss => {
@@ -261,8 +234,7 @@ function renderOrdenLargada() {
     datosOrdenados.forEach((piloto, index) => {
         const nombre = piloto.Nombre || piloto.NOMBRE || '';
         const categoria = piloto.Categoria || piloto.CATEGORIA || '';
-        
-        // Verificar si ALGÚN horario de este piloto está largando ahora
+
         const estaLargando = columnasSS.some(ss => {
             const tiempoLargada = convertirHorarioAMinutos(piloto[ss]);
             return tiempoLargada !== Infinity && tiempoLargada === tiempoActualEnMinutos;
@@ -281,8 +253,7 @@ function renderOrdenLargada() {
             const horario = piloto[ss] || '-';
             const tiempoLargada = convertirHorarioAMinutos(horario);
             const estaLargandoEste = tiempoLargada !== Infinity && tiempoLargada === tiempoActualEnMinutos;
-            
-            // Verde si está largando en este PE específico, azul normal si no
+
             html += `<td class="pe-horario-cell${estaLargandoEste ? ' celda-largando' : ''}">${horario}</td>`;
         });
 
@@ -299,18 +270,16 @@ function renderOrdenLargada() {
     document.getElementById('content').innerHTML = html;
 }
 
-function updateLastUpdate() {
+function actualizarUltimaActualizacion() {
     const now = new Date();
     const timeStr = now.toLocaleTimeString('es-AR');
-    document.getElementById('lastUpdate').textContent = 
-        `🔄 Última actualización: ${timeStr}`;
+    document.getElementById('lastUpdate').textContent =
+        `ðŸ”„ Ãšltima actualizaciÃ³n: ${timeStr}`;
 }
 
-// Inicializar
-loadData();
-setInterval(loadData, 30000);
+cargarDatos();
+setInterval(cargarDatos, 30000);
 
-// Actualizar contador cada segundo
 if (intervaloContador) {
     clearInterval(intervaloContador);
 }
