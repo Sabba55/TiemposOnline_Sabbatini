@@ -180,12 +180,12 @@ h1 {
 }
 
 .tabla-pe-container {
-    flex: 0 0 calc(40% - 12px);
+    flex: 0 0 calc(35% - 12px);
     min-width: 0;
 }
 
 .tabla-general-container {
-    flex: 0 0 calc(60% - 12px);
+    flex: 0 0 calc(65% - 12px);
     min-width: 0;
 }
 

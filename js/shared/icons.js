@@ -3,6 +3,14 @@ window.UtilidadesIconos = (function () {
         if (!vehiculo) return '';
 
         const vehiculoMinuscula = vehiculo.toLowerCase();
+        if (vehiculoMinuscula.includes('fiat') && vehiculoMinuscula.includes('regatta')) {
+            return 'fiatold';
+        }
+
+        if (vehiculoMinuscula.includes('peugeot') && vehiculoMinuscula.includes('208') && vehiculoMinuscula.includes('g1')) {
+            return 'peugeotg1';
+        }
+
         if (vehiculoMinuscula.includes('skoda') && vehiculoMinuscula.includes('rs')) {
             return 'skodars';
         }
