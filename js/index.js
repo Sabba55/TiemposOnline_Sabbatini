@@ -150,6 +150,8 @@ async function cargarDatos() {
         tramosData = analizarCSV(tramosText);
         pilotosData = analizarCSV(pilotosText);
         inscriptosData = analizarCSV(inscriptosText);
+        window.pilotosData = pilotosData;
+        window.tramosData  = tramosData;
         
         const validacion = validarConsistenciaDatos();
         if (!validacion.valido) {
