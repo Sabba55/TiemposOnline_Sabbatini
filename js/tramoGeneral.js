@@ -234,11 +234,16 @@ function renderizarResultados() {
         })
         .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
 
-    const peorTiempoPE = obtenerPeorTiempo(pilotosPE);
+    const peorTiempoPorCategoria = {};
+    categorias.forEach(cat => {
+        const pilotosCat = pilotosPE.filter(p => p.categoria === cat);
+        peorTiempoPorCategoria[cat] = obtenerPeorTiempo(pilotosCat);
+    });
 
     pilotosPE.forEach(piloto => {
         if (piloto.tieneDNF) {
-            piloto.tiempoSegundos = calcularTiempoDNF(peorTiempoPE);
+            const peorTiempoCat = peorTiempoPorCategoria[piloto.categoria] || 0;
+            piloto.tiempoSegundos = calcularTiempoDNF(peorTiempoCat);
             piloto.tiempo = segundosATiempo(piloto.tiempoSegundos, 2);
         }
     });
@@ -301,7 +306,7 @@ function renderizarResultados() {
 
                 if (esDNF(tiempo)) {
                     const pilotosEsteTramo = pilotosData
-                        .filter(piloto => piloto[columnaSS])
+                        .filter(piloto => piloto[columnaSS] && (piloto.Categoria || piloto.CATEGORIA) === (p.Categoria || p.CATEGORIA))
                         .map(piloto => {
                             const valorTiempo = piloto[columnaSS];
                             return {

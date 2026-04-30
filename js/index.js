@@ -165,7 +165,7 @@ async function cargarDatos() {
         actualizarUltimaActualizacion();
     } catch (error) {
         document.getElementById('content').innerHTML = 
-            '<div class="error">⚠️ Error al cargar los datos. Por favor, verifica que la hoja de cálculo esté publicada correctamente.</div>';
+            '<div class="error">Error al cargar los datos. Por favor, verifica que la hoja de cálculo esté publicada correctamente.</div>';
         console.error('Error:', error);
     }
 }
@@ -389,6 +389,7 @@ function calcularGanadorCategoria(categoria, totalPEs, clasificacionGeneral) {
             return {
                 nombre: nombre,
                 categoria: categoria,
+                vehiculo: piloto.Vehiculo || piloto.VEHICULO || piloto.vehiculo || '',
                 totalSegundos: totalSegundos,
                 penalizacionSegundos: penalizacionSegundos,
                 totalConPenalizacion: totalConPenalizacion,
@@ -409,22 +410,40 @@ function renderizarGanadoresFinales() {
     }
     
     const totalPEs = tramosData.length;
-    const categorias = [...new Set(pilotosData.map(p => p.Categoria || p.CATEGORIA))].filter(c => c).sort();
+    const categorias = [...new Set(pilotosData.map(p => p.Categoria || p.CATEGORIA))].filter(c => c);
+    const categoriaOrdenadas = [...categorias].sort((a, b) => {
+        const prioridades = { 'RC2': 0, 'RALLY2': 0, 'RCMR': 1 };
+        const pa = prioridades[(a || '').trim().toUpperCase()] ?? 2;
+        const pb = prioridades[(b || '').trim().toUpperCase()] ?? 2;
+        return pa !== pb ? pa - pb : a.localeCompare(b, 'es');
+    });
     
     const clasificacionGeneral = calcularClasificacionGeneral(totalPEs);
+    const { obtenerRutaLogoMarca } = window.UtilidadesIconos;
     
     let html = '<div class="ganadores-finales-container">';
     html += '<h2 class="ganadores-title">Ganadores por Categoría</h2>';
     html += '<div class="ganadores-grid">';
     
-    categorias.forEach(categoria => {
+    categoriaOrdenadas.forEach(categoria => {
         const ganador = calcularGanadorCategoria(categoria, totalPEs, clasificacionGeneral);
         
         if (ganador) {
+            const rutaLogo = obtenerRutaLogoMarca(ganador.vehiculo);
+            const marcaNombre = ganador.vehiculo || '';
+
             html += `
                 <div class="ganador-card">
                     <div class="ganador-categoria">${categoria}</div>
                     <div class="ganador-nombre">${ganador.nombre}</div>
+                    ${marcaNombre ? `
+                    <div class="ganador-vehiculo">
+                        ${rutaLogo
+                            ? `<img src="${rutaLogo}" alt="${marcaNombre}"
+                                onerror="this.onerror=null; this.style.display='none'">`
+                            : ''}
+                        <span>${marcaNombre}</span>
+                    </div>` : ''}
                     <div class="ganador-stats">
                         <div class="ganador-tiempo-total">
                             <span class="tiempo-label">Tiempo Total</span>

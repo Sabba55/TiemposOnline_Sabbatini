@@ -278,6 +278,10 @@ tbody tr:nth-child(even) td {
     background-color: var(--color-panel-brillo);
 }
 
+tbody tr:hover td {
+    background-color: #87baf89d !important;
+}
+
 .numero-badge {
     display: inline-block;
     color: var(--color-azul-principal);
