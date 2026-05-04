@@ -27,7 +27,7 @@ async function cargarNombreRally() {
 }
 
 function segundosATiempo(segundos) {
-    return formatearSegundos(segundos, 2);
+    return formatearSegundos(segundos, 3);
 }
 
 function capitalizarTexto(texto) {
@@ -282,6 +282,7 @@ function verificarPEsCompletas() {
 function calcularClasificacionGeneral(totalPEs) {
     const todosLosPilotos = pilotosData
         .map(piloto => {
+            const categoria = piloto.Categoria || piloto.CATEGORIA || '';
             let totalSegundos = 0;
             let tieneDatos = false;
             
@@ -296,15 +297,13 @@ function calcularClasificacionGeneral(totalPEs) {
                 tieneDatos = true;
                 
                 if (esDNF(tiempo)) {
+                    // Peor tiempo filtrado por la misma categoría del piloto
                     const pilotosEsteTramo = pilotosData
-                        .filter(p => p[columnaSS])
-                        .map(p => {
-                            const valorTiempo = p[columnaSS];
-                            return {
-                                tiempoSegundos: tiempoASegundos(valorTiempo),
-                                tieneDNF: esDNF(valorTiempo)
-                            };
-                        })
+                        .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[columnaSS])
+                        .map(p => ({
+                            tiempoSegundos: tiempoASegundos(p[columnaSS]),
+                            tieneDNF: esDNF(p[columnaSS])
+                        }))
                         .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
                     
                     const peorTiempoTramo = obtenerPeorTiempo(pilotosEsteTramo);
@@ -326,7 +325,7 @@ function calcularClasificacionGeneral(totalPEs) {
             
             return {
                 nombre: piloto.Nombre || piloto.NOMBRE || '',
-                categoria: piloto.Categoria || piloto.CATEGORIA || '',
+                categoria: categoria,
                 totalConPenalizacion: totalConPenalizacion
             };
         })
@@ -359,13 +358,10 @@ function calcularGanadorCategoria(categoria, totalPEs, clasificacionGeneral) {
                 if (esDNF(tiempo)) {
                     const pilotosEsteTramo = pilotosData
                         .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[columnaSS])
-                        .map(p => {
-                            const valorTiempo = p[columnaSS];
-                            return {
-                                tiempoSegundos: tiempoASegundos(valorTiempo),
-                                tieneDNF: esDNF(valorTiempo)
-                            };
-                        })
+                        .map(p => ({
+                            tiempoSegundos: tiempoASegundos(p[columnaSS]),
+                            tieneDNF: esDNF(p[columnaSS])
+                        }))
                         .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
                     
                     const peorTiempoTramo = obtenerPeorTiempo(pilotosEsteTramo);
