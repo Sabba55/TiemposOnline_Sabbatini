@@ -152,6 +152,29 @@ function calcularVelocidadPromedioTotal(tiempoSegundos, peNumero) {
     return velocidad.toFixed(0);
 }
 
+// ── Navegación entre PEs ──────────────────────────────────────────────────────
+function actualizarBotonesNavegacion() {
+    const peActual = parseInt(peNumber);
+    const totalPEs = tramosData.length;
+
+    const btnAnterior = document.getElementById('btnPeAnterior');
+    const btnSiguiente = document.getElementById('btnPeSiguiente');
+
+    if (btnAnterior) btnAnterior.disabled = peActual <= 1;
+    if (btnSiguiente) btnSiguiente.disabled = peActual >= totalPEs;
+}
+
+function navegarPE(direccion) {
+    const peActual = parseInt(peNumber);
+    const totalPEs = tramosData.length;
+    const peDestino = peActual + direccion;
+
+    if (peDestino < 1 || peDestino > totalPEs) return;
+
+    window.location.href = `tramoGeneral.html?pe=${peDestino}`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function cargarDatos() {
     try {
         const cacheBuster = `&t=${Date.now()}`;
@@ -168,6 +191,7 @@ async function cargarDatos() {
         tramosData = analizarTramosCSV(tramosText);
 
         renderizarResultados();
+        actualizarBotonesNavegacion();
         actualizarUltimaActualizacion();
     } catch (error) {
         document.getElementById('content').innerHTML =

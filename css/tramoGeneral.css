@@ -334,3 +334,58 @@ td.col-prom {
     width: 1%;
     white-space: nowrap;
 }
+
+/* ── Navegación entre PEs ── */
+.pe-nav-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 10px;
+}
+
+.pe-nav-btn-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.pe-nav-btn {
+    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
+    color: var(--color-texto-claro);
+    border: none;
+    border-radius: 10px;
+    width: 48px;
+    height: 44px;
+    font-size: 32px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
+    padding-bottom: 3px;
+}
+
+.pe-nav-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.36);
+    background: linear-gradient(135deg, var(--color-azul-principal-hover) 0%, var(--color-grafito-700) 100%);
+}
+
+.pe-nav-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.pe-nav-btn:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* el h1 dentro del contenedor de nav no necesita margin-bottom propio */
+.pe-nav-container h1 {
+    margin-bottom: 0;
+}

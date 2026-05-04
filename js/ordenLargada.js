@@ -159,19 +159,19 @@ function actualizarContadorProximaLargada() {
     const pilotosHTML = proximasLargadas.map((piloto, indice) => `
         <div class="info-piloto">
             <div class="info-item">
-                <span class="label">Piloto</span>
+                <span class="label">Piloto:</span>
                 <span class="valor nombre">${piloto.nombre}</span>
             </div>
             <div class="info-item">
-                <span class="label">Categoría</span>
+                <span class="label">Categoría:</span>
                 <span class="valor">${piloto.categoria}</span>
             </div>
             <div class="info-item">
-                <span class="label">PE</span>
+                <span class="label">PE:</span>
                 <span class="valor">${piloto.ss.replace('SS', '')}</span>
             </div>
             <div class="info-item">
-                <span class="label">Horario</span>
+                <span class="label">Horario:</span>
                 <span class="valor horario">${piloto.horario}</span>
             </div>
         </div>

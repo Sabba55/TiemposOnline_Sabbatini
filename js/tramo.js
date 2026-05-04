@@ -61,6 +61,29 @@ function calcularVelocidadPromedio(segundosTiempo, distanciaKm) {
     return velocidad.toFixed(0);
 }
 
+// ── Navegación entre PEs ──────────────────────────────────────────────────────
+function actualizarBotonesNavegacion() {
+    const peActual = parseInt(numeroPE);
+    const totalPEs = datosTramos.length;
+
+    const btnAnterior = document.getElementById('btnPeAnterior');
+    const btnSiguiente = document.getElementById('btnPeSiguiente');
+
+    if (btnAnterior) btnAnterior.disabled = peActual <= 1;
+    if (btnSiguiente) btnSiguiente.disabled = peActual >= totalPEs;
+}
+
+function navegarPE(direccion) {
+    const peActual = parseInt(numeroPE);
+    const totalPEs = datosTramos.length;
+    const peDestino = peActual + direccion;
+
+    if (peDestino < 1 || peDestino > totalPEs) return;
+
+    window.location.href = `tramo.html?pe=${peDestino}`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function cargarDatos() {
     try {
         const cacheBuster = `&t=${Date.now()}`;
@@ -77,6 +100,7 @@ async function cargarDatos() {
         datosTramos = analizarTramosCSV(textoTramos);
 
         renderizarResultados();
+        actualizarBotonesNavegacion();
         actualizarUltimaActualizacion();
     } catch (error) {
         document.getElementById('content').innerHTML =
@@ -234,7 +258,7 @@ function renderizarResultados() {
 
     if (datosPilotos.length === 0) {
         document.getElementById('content').innerHTML =
-            '<div class="error">âš  No se encontraron datos de pilotos.</div>';
+            '<div class="error">âš  No se encontraron datos de pilotos.</div>';
         return;
     }
 
