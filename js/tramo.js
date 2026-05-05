@@ -363,7 +363,7 @@ function renderizarResultados() {
         const mejorTotal = pilotosGeneralCategoria.length > 0 ? pilotosGeneralCategoria[0].totalConPenalizacion : 0;
 
         htmlCompleto += `
-            <div class="categoria-completa mb-5">
+            <div class="categoria-completa mb-5" id="categoria-${categoria.replace(/\s+/g, '-').toLowerCase()}">
                 <h3 class="text-center categoria-titulo">${categoria}</h3>
                 <div class="d-flex justify-content-between gap-4">
                     <div class="tabla-pe-container flex-grow-1">
@@ -502,6 +502,19 @@ function renderizarResultados() {
     });
 
     document.getElementById('content').innerHTML = htmlCompleto;
+    renderizarBotonesCategorias(categorias);
+}
+
+function renderizarBotonesCategorias(categorias) {
+    const nav = document.getElementById('categoriasNav');
+    if (!nav) return;
+
+    nav.innerHTML = categorias
+        .map(cat => {
+            const id = `categoria-${cat.replace(/\s+/g, '-').toLowerCase()}`;
+            return `<button class="btn-categoria" onclick="document.getElementById('${id}').scrollIntoView({ behavior: 'smooth', block: 'start' })">${cat}</button>`;
+        })
+        .join('');
 }
 
 function actualizarUltimaActualizacion() {
