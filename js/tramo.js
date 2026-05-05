@@ -362,7 +362,9 @@ function renderizarResultados() {
         const mejorTiempo = pilotosCategoria.length > 0 ? pilotosCategoria[0].tiempoSegundos : 0;
         const mejorTotal = pilotosGeneralCategoria.length > 0 ? pilotosGeneralCategoria[0].totalConPenalizacion : 0;
 
-        htmlCompleto += `
+        // esto va en div class="cat..." | sirve para evitar los flash en caso que falle
+        // style="${estaOculta ? 'display:none' : ''}">
+        htmlCompleto += ` 
             <div class="categoria-completa mb-5" id="categoria-${categoria.replace(/\s+/g, '-').toLowerCase()}">
                 <h3 class="text-center categoria-titulo">${categoria}</h3>
                 <div class="d-flex justify-content-between gap-4">
@@ -509,12 +511,73 @@ function renderizarBotonesCategorias(categorias) {
     const nav = document.getElementById('categoriasNav');
     if (!nav) return;
 
+    const ocultas = obtenerCategoriasOcultas();
+
     nav.innerHTML = categorias
         .map(cat => {
             const id = `categoria-${cat.replace(/\s+/g, '-').toLowerCase()}`;
-            return `<button class="btn-categoria" onclick="document.getElementById('${id}').scrollIntoView({ behavior: 'smooth', block: 'start' })">${cat}</button>`;
+            const estaOculta = ocultas.includes(cat);
+            return `<button class="btn-categoria ${estaOculta ? 'btn-categoria--oculta' : ''}" 
+                onclick="toggleCategoria('${cat}')">${cat}</button>`;
         })
         .join('');
+
+    // Aplicar estado inicial
+    categorias.forEach(cat => {
+        if (ocultas.includes(cat)) ocultarDivCategoria(cat);
+    });
+}
+
+function obtenerCategoriasOcultas() {
+    try {
+        const guardado = JSON.parse(localStorage.getItem('tramo_categorias_ocultas') || 'null');
+        if (!guardado) return [];
+
+        const ahora = Date.now();
+        const unDia = 24 * 60 * 60 * 1000;
+
+        if (ahora - guardado.timestamp > unDia) {
+            localStorage.removeItem('tramo_categorias_ocultas');
+            return [];
+        }
+
+        return guardado.categorias || [];
+    } catch { return []; }
+}
+
+function guardarCategoriasOcultas(ocultas) {
+    localStorage.setItem('tramo_categorias_ocultas', JSON.stringify({
+        categorias: ocultas,
+        timestamp: Date.now()
+    }));
+}
+
+function ocultarDivCategoria(cat) {
+    const id = `categoria-${cat.replace(/\s+/g, '-').toLowerCase()}`;
+    const div = document.getElementById(id);
+    if (div) div.style.display = 'none';
+}
+
+function toggleCategoria(cat) {
+    const id = `categoria-${cat.replace(/\s+/g, '-').toLowerCase()}`;
+    const div = document.getElementById(id);
+    const ocultas = obtenerCategoriasOcultas();
+    const btn = [...document.querySelectorAll('.btn-categoria')]
+        .find(b => b.textContent === cat);
+
+    const estaOculta = ocultas.includes(cat);
+
+    if (estaOculta) {
+        // Mostrar
+        if (div) div.style.display = '';
+        if (btn) btn.classList.remove('btn-categoria--oculta');
+        guardarCategoriasOcultas(ocultas.filter(c => c !== cat));
+    } else {
+        // Ocultar
+        if (div) div.style.display = 'none';
+        if (btn) btn.classList.add('btn-categoria--oculta');
+        guardarCategoriasOcultas([...ocultas, cat]);
+    }
 }
 
 function actualizarUltimaActualizacion() {

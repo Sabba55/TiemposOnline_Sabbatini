@@ -157,6 +157,10 @@ h1 {
     transform: translateY(0);
 }
 
+.btn-categoria--oculta {
+    opacity: 0.4;
+}
+
 /* ── Navegación entre PEs ── */
 .pe-nav-btn-wrapper {
     display: flex;
