@@ -75,7 +75,7 @@ h1 {
     font-family: 'Orbitron', serif;
     text-align: center;
     color: var(--color-azul-principal);
-    margin-bottom: 30px;
+    margin-bottom: 0;
     font-size: 32px;
     font-weight: 800;
     text-transform: uppercase;
@@ -102,6 +102,103 @@ h1 {
     color: var(--color-texto-claro);
     font-size: 16px;
     letter-spacing: 0.8px;
+}
+
+/* ── Header de dos pisos ── */
+.pe-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 10px;
+}
+
+.pe-nav-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+    padding-bottom: 14px;
+}
+
+.pe-categorias-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 14px;
+    border-top: 1px solid var(--color-borde-suave);
+}
+
+.btn-categoria {
+    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
+    color: var(--color-texto-claro);
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
+}
+
+.btn-categoria:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.36);
+    background: linear-gradient(135deg, var(--color-azul-principal-hover) 0%, var(--color-grafito-700) 100%);
+}
+
+.btn-categoria:active {
+    transform: translateY(0);
+}
+
+/* ── Navegación entre PEs ── */
+.pe-nav-btn-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.pe-nav-btn {
+    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
+    color: var(--color-texto-claro);
+    border: none;
+    border-radius: 10px;
+    width: 48px;
+    height: 44px;
+    font-size: 32px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
+    padding-bottom: 3px;
+}
+
+.pe-nav-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.36);
+    background: linear-gradient(135deg, var(--color-azul-principal-hover) 0%, var(--color-grafito-700) 100%);
+}
+
+.pe-nav-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.pe-nav-btn:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.pe-nav-container h1 {
+    margin-bottom: 0;
 }
 
 .loading {
@@ -296,7 +393,7 @@ td {
     background-color: var(--color-panel-brillo);
     font-size: 13px;
     color: var(--color-texto);
-    height: 50px;                   
+    height: 50px;
     vertical-align: middle;
 }
 
@@ -375,7 +472,6 @@ tr:hover td {
     background-color: #fee2e2 !important;
 }
 
-/* ESTILOS PARA INDICADORES DE POSICIÓN */
 .position-cell {
     display: flex;
     flex-direction: column;
@@ -410,7 +506,6 @@ tr:hover td {
     color: #dc2626;
 }
 
-/* Estilos para columnas PE (Orden de Largada) */
 .pe-horario-cell {
     font-weight: bold !important;
     color: #2055aa !important;
@@ -418,14 +513,12 @@ tr:hover td {
     transition: all 0.3s ease;
 }
 
-/* Estilo para horarios que fueron modificados */
 .pe-horario-modificado {
     color: #b91c1c !important;
     background-color: #fee2e2 !important;
     position: relative;
 }
 
-/* Animación de pulso para resaltar el cambio */
 @keyframes pulso-modificado {
     0%, 100% {
         transform: scale(1);
@@ -437,7 +530,6 @@ tr:hover td {
     }
 }
 
-/* Asegurar que el estilo se mantenga en hover */
 tr:hover .pe-horario-cell {
     color: #1e40af !important;
 }
@@ -452,59 +544,4 @@ tr:hover .pe-horario-modificado {
     object-fit: contain;
     display: block;
     margin: 0 auto;
-}
-
-/* ── Navegación entre PEs ── */
-.pe-nav-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 30px;
-    margin-bottom: 10px;
-}
-
-.pe-nav-btn-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.pe-nav-btn {
-    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
-    color: var(--color-texto-claro);
-    border: none;
-    border-radius: 10px;
-    width: 48px;
-    height: 44px;
-    font-size: 32px;
-    line-height: 1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
-    padding-bottom: 3px;
-}
-
-.pe-nav-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.36);
-    background: linear-gradient(135deg, var(--color-azul-principal-hover) 0%, var(--color-grafito-700) 100%);
-}
-
-.pe-nav-btn:active:not(:disabled) {
-    transform: translateY(0);
-}
-
-.pe-nav-btn:disabled {
-    opacity: 0.25;
-    cursor: not-allowed;
-    box-shadow: none;
-}
-
-/* el h1 dentro del contenedor de nav no necesita margin-bottom propio */
-.pe-nav-container h1 {
-    margin-bottom: 0;
 }
