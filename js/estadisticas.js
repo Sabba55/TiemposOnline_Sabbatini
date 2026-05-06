@@ -320,53 +320,64 @@ function calcularPilotoMasConsistente(categoria) {
         gruposPorNombre[clave].push(tramo.PE);
     });
 
-    // Solo interesan los nombres que aparecen 2 o más veces
-    const nombresRepetidos = Object.entries(gruposPorNombre)
+    // Solo interesan los grupos que aparecen 2 o más veces (tramos repetidos)
+    const gruposRepetidos = Object.entries(gruposPorNombre)
         .filter(([, pes]) => pes.length >= 2);
 
-    if (nombresRepetidos.length === 0) return null;
+    if (gruposRepetidos.length === 0) return null;
 
     const candidatos = [];
 
-    pilotosDeCat(categoria)
-        .forEach(piloto => {
-            let tiemposTotales = [];
+    pilotosDeCat(categoria).forEach(piloto => {
+        const cvsPorGrupo = [];
+        let tramosCompletados = 0;
 
-            nombresRepetidos.forEach(([, pes]) => {
-                const tiemposDelGrupo = [];
-                pes.forEach(pe => {
-                    const tiempo = piloto[`SS${pe}`];
-                    if (!tiempo || tiempo.trim() === '' || esDNF(tiempo)) return;
-                    const seg = tiempoASegundos(tiempo);
-                    if (seg < 999999) tiemposDelGrupo.push(seg);
-                });
-                // Solo usar este grupo si el piloto completó al menos 2 instancias
-                if (tiemposDelGrupo.length >= 2) {
-                    tiemposTotales = tiemposTotales.concat(tiemposDelGrupo);
-                }
+        gruposRepetidos.forEach(([, pes]) => {
+            const tiemposDelGrupo = [];
+            pes.forEach(pe => {
+                const tiempo = piloto[`SS${pe}`];
+                if (!tiempo || tiempo.trim() === '' || esDNF(tiempo)) return;
+                const seg = tiempoASegundos(tiempo);
+                if (seg < 999999) tiemposDelGrupo.push(seg);
             });
 
-            if (tiemposTotales.length < 2) return;
+            // Solo usar este grupo si el piloto completó al menos 2 pasadas
+            if (tiemposDelGrupo.length < 2) return;
 
-            const promedio = tiemposTotales.reduce((a, b) => a + b, 0) / tiemposTotales.length;
-            const varianza = tiemposTotales.reduce((sum, t) => sum + Math.pow(t - promedio, 2), 0) / tiemposTotales.length;
-            const desvio = Math.sqrt(varianza);
+            const promedio = tiemposDelGrupo.reduce((a, b) => a + b, 0) / tiemposDelGrupo.length;
+            const varianza = tiemposDelGrupo.reduce((sum, t) => sum + Math.pow(t - promedio, 2), 0) / tiemposDelGrupo.length;
+            const desvio   = Math.sqrt(varianza);
 
-            candidatos.push({
-                nombre: piloto.Nombre || piloto.NOMBRE || '',
-                desvio,
-                tramosCompletados: tiemposTotales.length
-            });
+            // Coeficiente de variación: desvío relativo al promedio del grupo (%)
+            // Esto hace que tramos cortos y largos pesen igual
+            const cv = promedio > 0 ? (desvio / promedio) * 100 : 0;
+
+            cvsPorGrupo.push(cv);
+            tramosCompletados += tiemposDelGrupo.length;
         });
+
+        // El piloto necesita al menos un grupo válido para ser candidato
+        if (cvsPorGrupo.length === 0) return;
+
+        // Consistencia final = promedio de los CV de cada grupo
+        const cvPromedio = cvsPorGrupo.reduce((a, b) => a + b, 0) / cvsPorGrupo.length;
+
+        candidatos.push({
+            nombre: piloto.Nombre || piloto.NOMBRE || '',
+            cv: cvPromedio,
+            tramosCompletados
+        });
+    });
 
     if (candidatos.length === 0) return null;
 
-    candidatos.sort((a, b) => a.desvio - b.desvio);
+    // Menor CV = más consistente
+    candidatos.sort((a, b) => a.cv - b.cv);
     const mejor = candidatos[0];
 
     return {
         nombre: mejor.nombre,
-        desvio: mejor.desvio.toFixed(1),
+        desvio: mejor.cv.toFixed(2), // ahora es CV en %, mantenemos el campo "desvio" para no romper el render
         tramosCompletados: mejor.tramosCompletados
     };
 }
@@ -841,10 +852,10 @@ function renderizarEstadisticasCategoria(categoria) {
             <div class="tarjeta-consistencia">
                 <div class="seccion-titulo">Piloto más consistente</div>
                 <div class="consistencia-piloto">${consistente.nombre}</div>
-                <div class="consistencia-desvio">±${consistente.desvio}s</div>
-                <div class="consistencia-desvio-label">desvío estándar</div>
+                <div class="consistencia-desvio">${consistente.desvio}%</div>
+                <div class="consistencia-desvio-label">variación promedio</div>
                 <div class="consistencia-explicacion">
-                    Menor variación de tiempos entre todos sus tramos.
+                    Menor variación porcentual de tiempos entre tramos repetidos.
                     Cuanto más bajo, más regular es el piloto.
                 </div>
             </div>
