@@ -779,3 +779,21 @@ tr:hover td { background-color: #e9edf2 !important; }
     background: #94a3b8;
     color: #ffffff;
 }
+/* Tarjeta posiciones perdidas (variante roja de remontada) */
+.tarjeta-perdida::before {
+    background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+}
+
+.perdida-badge {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+}
+
+.perdida-pos-mejor { color: #16a34a; }
+.perdida-pos-fin   { color: #dc2626; }
+
+.perdida-flecha { color: #dc2626; }
+
+.perdida-ganancia {
+    background: #fef2f2;
+    color: #dc2626;
+}

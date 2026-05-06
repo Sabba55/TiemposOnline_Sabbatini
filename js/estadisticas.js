@@ -463,7 +463,55 @@ function calcularRemontadaPorPosicion(categoria) {
     return mejorRemontada;
 }
 
-// Posiciones solo en un PE específico (sin acumular)
+// Piloto que más posiciones perdió: desde su MEJOR posición acumulada en cualquier PE hasta el resultado final
+function calcularPilotoMasPosicionesPerdidas(categoria) {
+    const totalPEs = datosTramos.length;
+
+    let ultimoPE = 0;
+    for (let i = totalPEs; i >= 1; i--) {
+        const columna = `SS${i}`;
+        const hayTiempos = pilotosDeCat(categoria).some(
+            p => p[columna] && p[columna].trim() !== ''
+        );
+        if (hayTiempos) { ultimoPE = i; break; }
+    }
+
+    if (ultimoPE < 2) return null;
+
+    const posicionesPorPE = [];
+    for (let pe = 1; pe <= ultimoPE; pe++) {
+        posicionesPorPE.push(calcularPosicionesAcumuladas(categoria, pe));
+    }
+
+    const posicionesFinal = posicionesPorPE[ultimoPE - 1];
+
+    let peorCaso = null;
+    let mayorPerdida = -Infinity;
+
+    Object.keys(posicionesFinal).forEach(nombre => {
+        const posFin = posicionesFinal[nombre];
+
+        // Buscar la MEJOR posición (número más bajo) en PEs anteriores al último
+        let mejorPos = Infinity;
+        let mejorPE  = null;
+
+        for (let pe = 1; pe < ultimoPE; pe++) {
+            const pos = posicionesPorPE[pe - 1][nombre];
+            if (!pos) continue;
+            if (pos < mejorPos) { mejorPos = pos; mejorPE = pe; }
+        }
+
+        if (mejorPE === null || mejorPos >= posFin) return;
+
+        const perdida = posFin - mejorPos;
+        if (perdida > mayorPerdida) {
+            mayorPerdida = perdida;
+            peorCaso = { nombre, posMejor: mejorPos, posFin, perdida, desdePE: mejorPE };
+        }
+    });
+
+    return peorCaso;
+}
 function calcularPosicionesPE(categoria, numeroPE) {
     const columna = `SS${numeroPE}`;
 
@@ -576,6 +624,7 @@ function renderizarEstadisticasCategoria(categoria) {
     const remontadaTiempo  = calcularRemontadaPorTiempo(categoria);
     const remontadaPos     = calcularRemontadaPorPosicion(categoria);
     const tramoDisputado   = calcularTramoMasDisputado(categoria);
+    const posicionesPerdidas = calcularPilotoMasPosicionesPerdidas(categoria);
 
     // ── HTML: tarjeta porcentaje sin DNF ──
     const colorPorcentaje = !porcentajeSinDNF      ? '#16a34a'
@@ -817,6 +866,36 @@ function renderizarEstadisticasCategoria(categoria) {
             </div>
         `;
 
+    // ── HTML: piloto que más posiciones perdió ──
+    const htmlPosicionesPerdidas = posicionesPerdidas && posicionesPerdidas.perdida > 0
+        ? `
+            <div class="tarjeta-remontada tarjeta-perdida">
+                <div class="seccion-titulo">Más posiciones perdidas</div>
+                <div class="remontada-piloto">${posicionesPerdidas.nombre}</div>
+                <span class="remontada-badge perdida-badge">−${posicionesPerdidas.perdida} posicion${posicionesPerdidas.perdida !== 1 ? 'es' : ''}</span>
+                <div class="remontada-posiciones">
+                    <div class="remontada-pos-inicio">
+                        <div class="remontada-pos-numero perdida-pos-mejor">${posicionesPerdidas.posMejor}°</div>
+                        <div class="remontada-pos-label">tras PE ${posicionesPerdidas.desdePE}</div>
+                    </div>
+                    <div class="remontada-flecha perdida-flecha">→</div>
+                    <div class="remontada-pos-fin">
+                        <div class="remontada-pos-numero perdida-pos-fin">${posicionesPerdidas.posFin}°</div>
+                        <div class="remontada-pos-label">Actual</div>
+                    </div>
+                </div>
+                <div class="remontada-ganancia perdida-ganancia">
+                    Cayó <strong>${posicionesPerdidas.perdida}</strong> lugar${posicionesPerdidas.perdida !== 1 ? 'es' : ''} desde su mejor posición (tras PE ${posicionesPerdidas.desdePE})
+                </div>
+            </div>
+        `
+        : `
+            <div class="tarjeta-remontada tarjeta-perdida">
+                <div class="seccion-titulo">Más posiciones perdidas</div>
+                <div class="no-data">Sin información</div>
+            </div>
+        `;
+
     // ── HTML: fila inferior ──
     const htmlFilaInferior = `
         <div class="fila-inferior">
@@ -825,6 +904,7 @@ function renderizarEstadisticasCategoria(categoria) {
             ${htmlTramoDisputado}
             ${htmlRemontadaTiempo}
             ${htmlRemontadaPos}
+            ${htmlPosicionesPerdidas}
         </div>
     `;
 
