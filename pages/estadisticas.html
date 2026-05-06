@@ -1,22 +1,39 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/estadisticas.css">
-    <title>Estadisticas - Sabbatini</title>
+    <title>Estadísticas - Sabbatini</title>
 </head>
+
 <body>
-    <div style="display: flex; align-items: center; flex-direction: column; padding-top: 10%;">
-        <h1>Estoy laburando en este apartado todavia</h1>
-        <h2>Estos datos solo seran test para implementarlo en otro sitio web</h2>
-        <h3>gracias por mostrar interes en este apartado</h3>
-        <h1>👍</h1>
+    <div class="container">
+        <a href="/index.html" class="btn-back">
+            <span>←</span>
+            <span>Volver al Menú</span>
+        </a>
+
+        <div class="estadisticas-header">
+            <div class="header-titulo">
+                <h1>ESTADÍSTICAS</h1>
+            </div>
+            <div class="header-categorias">
+                <div id="categoriasNav" class="categorias-nav"></div>
+            </div>
+        </div>
+
+        <div id="content" class="loading">Cargando datos</div>
+        <div class="last-update" id="lastUpdate"></div>
     </div>
 
     <script src="/js/shared/csv.js"></script>
     <script src="/js/shared/time.js"></script>
     <script src="/js/shared/dnf.js"></script>
+    <script src="/js/shared/icons.js"></script>
     <script src="/js/estadisticas.js"></script>
 </body>
 </html>
