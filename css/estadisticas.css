@@ -103,7 +103,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 15px;
     flex-wrap: wrap;
 }
 
@@ -111,10 +111,11 @@ body {
     background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
     color: var(--color-texto-claro);
     border: none;
-    padding: 10px 20px;
+    padding: 13px 23px;
     cursor: pointer;
     border-radius: 8px;
-    font-size: 13px;
+    font-family: 'Orbitron', serif;
+    font-size: 14px;
     font-weight: 600;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -299,87 +300,104 @@ body {
     grid-template-columns: 1fr auto;
     gap: 24px;
     margin-bottom: 30px;
-    align-items: start;
+    align-items: center;
 }
 
+/* --- FIX 1: tarjetas en fila, ancho ampliado --- */
 .ganadores-derecha {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 16px;
-    width: 220px;
+    width: 460px;
     flex-shrink: 0;
 }
 
-/* Tabla de ganadores por tramo */
+.ganadores-derecha > * {
+    flex: 1;
+}
+
+.tbl-ganadores-outer {
+    border: 1.5px solid var(--color-azul-principal);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
-    border: 2px solid var(--color-azul-principal);
-    overflow: hidden;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
 }
 
 th {
     background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
     color: var(--color-texto-claro);
-    padding: 12px 8px;
-    text-align: center;
-    font-size: 12px;
+    padding: 11px 14px;
+    text-align: left;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    letter-spacing: 0.8px;
+    border: none;
 }
 
-th:last-child { border-right: none; }
+th.center { text-align: center; }
 
 td {
-    padding: 10px 8px;
-    text-align: center;
+    padding: 0;
     border-bottom: 1px solid var(--color-borde-suave);
-    border-right: 1px solid var(--color-borde-suave);
     background-color: var(--color-panel-brillo);
-    font-size: 13px;
-    color: var(--color-texto);
-    height: 46px;
     vertical-align: middle;
 }
 
 td:last-child { border-right: none; }
 tbody tr:last-child td { border-bottom: none; }
-
 tbody tr:nth-child(odd) td  { background-color: #f0f3f6; }
 tbody tr:nth-child(even) td { background-color: var(--color-panel-brillo); }
 tr:hover td { background-color: #e9edf2 !important; }
 
-.col-pos {
-    width: 1%;
-    white-space: nowrap;
-    padding-left: 10px;
-    padding-right: 10px;
+.col-pos  { width: 1%; }
+.col-tiempo { width: 25%; }
+.col-ganador { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.pe-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
 }
 
-.col-tiempo {
-    width: 1%;
-    white-space: nowrap;
-}
-
-/* Fila dorada ganador de PE */
-.fila-ganador-pe td {
-    background-color: #fff8e6 !important;
-    font-weight: 600;
-}
-
-.fila-ganador-pe td:first-child {
-    background: var(--color-oro) !important;
+.pe-badge {
+    background: var(--color-oro);
     color: var(--color-azul-principal);
-    font-family: 'Orbitron', serif;
-    font-weight: 800;
-    font-size: 15px;
+    font-weight: 700;
+    font-size: 12px;
+    border-radius: 6px;
+    padding: 4px 10px;
+    white-space: nowrap;
 }
 
-.fila-ganador-pe:hover td { background-color: #ffefc4 !important; }
-.fila-ganador-pe:hover td:first-child { background: var(--color-oro) !important; }
+.piloto-cell {
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-texto);
+}
+
+.tiempo-cell {
+    text-align: center;
+    padding: 10px 14px;
+    width: 20%;
+}
+
+.tiempo-val {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-texto);
+    background: var(--color-panel);
+    border-radius: 6px;
+    padding: 4px 10px;
+    display: inline-block;
+}
 
 /* Tarjeta mayor ganador */
 .tarjeta-mayor-ganador {
@@ -415,11 +433,11 @@ tr:hover td { background-color: #e9edf2 !important; }
     margin-bottom: 10px;
 }
 
+/* --- FIX 3: logo sin filtro blanco, tamaño adecuado --- */
 .marca-ganadora-logo {
     height: 28px;
     object-fit: contain;
-    filter: brightness(0) invert(1);
-    opacity: 0.9;
+    /* Sin filter para que el logo se vea con sus colores reales */
 }
 
 .tarjeta-mayor-ganador::before {

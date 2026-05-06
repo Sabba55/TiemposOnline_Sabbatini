@@ -719,10 +719,10 @@ function renderizarEstadisticasCategoria(categoria) {
     } else {
         ganadoresPE.forEach(({ pe, ganador, tiempo }) => {
             htmlFilasGanadores += `
-                <tr class="fila-ganador-pe">
-                    <td class="col-pos"><strong>PE ${pe}</strong></td>
-                    <td style="font-weight:700;">${ganador}</td>
-                    <td class="col-tiempo">${tiempo}</td>
+                <tr>
+                    <td class="col-pos"><div class="pe-cell"><span class="pe-badge">PE ${pe}</span></div></td>
+                    <td class="col-ganador"><div class="piloto-cell">${ganador}</div></td>
+                    <td class="col-tiempo tiempo-cell"><span class="tiempo-val">${tiempo}</span></td>
                 </tr>
             `;
         });
@@ -742,7 +742,7 @@ function renderizarEstadisticasCategoria(categoria) {
             const nombresHTML = mayorGanador.lideres
                 .map(l => `<div class="mayor-ganador-nombre">${l.nombre}</div>`)
                 .join('');
-            const etiqueta = mayorGanador.lideres.length > 1 ? 'Empate — Mayor ganadores de tramos' : 'Mayor ganador de tramos';
+            const etiqueta = mayorGanador.lideres.length > 1 ? 'Mayor ganadores de tramos' : 'Mayor ganador de tramos';
             htmlMayorGanador = `
                 <div class="tarjeta-mayor-ganador">
                     <div class="mayor-ganador-label">${etiqueta}</div>
@@ -761,21 +761,23 @@ function renderizarEstadisticasCategoria(categoria) {
         if (marcaMasGanadora.todosDistintos) {
             htmlMarcaMasGanadora = `
                 <div class="tarjeta-mayor-ganador tarjeta-marca-ganadora">
-                    <div class="mayor-ganador-label">Marca más ganadora</div>
+                    <div class="mayor-ganador-label">Marca más ganadora de tramos</div>
                     <div class="mayor-ganador-todos-distintos">Cada tramo fue ganado por una marca diferente</div>
                 </div>
             `;
         } else {
             const marcasHTML = marcaMasGanadora.marcasLideres.map(({ marca }) => {
                 const logo = obtenerRutaLogoMarca(marca + ' x');
+                const esToyota = marca.trim().toLowerCase() === 'toyota';
+                const logoStyle = esToyota ? 'style="filter: brightness(0) invert(1);"' : '';
                 return `
                     <div class="marca-ganadora-fila">
-                        ${logo ? `<img src="${logo}" alt="${marca}" class="marca-ganadora-logo" onerror="this.style.display='none'">` : ''}
+                        ${logo ? `<img src="${logo}" alt="${marca}" class="marca-ganadora-logo" ${logoStyle} onerror="this.style.display='none'">` : ''}
                         <span class="mayor-ganador-nombre" style="margin:0;">${marca}</span>
                     </div>
                 `;
             }).join('');
-            const etiquetaMarca = marcaMasGanadora.marcasLideres.length > 1 ? 'Empate — Marcas más ganadoras' : 'Marca más ganadora';
+            const etiquetaMarca = marcaMasGanadora.marcasLideres.length > 1 ? 'Marcas más ganadoras' : 'Marca más ganadora de tramos';
             htmlMarcaMasGanadora = `
                 <div class="tarjeta-mayor-ganador tarjeta-marca-ganadora">
                     <div class="mayor-ganador-label">${etiquetaMarca}</div>
@@ -791,16 +793,18 @@ function renderizarEstadisticasCategoria(categoria) {
         <div class="ganadores-layout">
             <div>
                 <div class="seccion-titulo">Ganadores por tramo</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th class="col-pos">PE</th>
-                            <th>Ganador</th>
-                            <th class="col-tiempo">Tiempo</th>
-                        </tr>
-                    </thead>
-                    <tbody>${htmlFilasGanadores}</tbody>
-                </table>
+                <div class="tbl-ganadores-outer">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="center">PE</th>
+                                <th>Ganador</th>
+                                <th class="center">Tiempo</th>
+                            </tr>
+                        </thead>
+                        <tbody>${htmlFilasGanadores}</tbody>
+                    </table>
+                </div>
             </div>
             <div class="ganadores-derecha">
                 ${htmlMayorGanador}
