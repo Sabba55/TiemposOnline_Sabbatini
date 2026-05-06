@@ -176,7 +176,8 @@ function calcularGanadoresPorTramo(categoria) {
     return resultado;
 }
 
-// Cuenta cuántas veces ganó cada piloto un PE en esa categoría
+// Cuenta cuántas veces ganó cada piloto un PE en esa categoría.
+// Devuelve: { lideres: [{nombre, victorias}], todosDistintos: bool }
 function calcularMayorGanador(ganadoresPorTramo) {
     const conteo = {};
 
@@ -189,7 +190,47 @@ function calcularMayorGanador(ganadoresPorTramo) {
 
     if (ordenados.length === 0) return null;
 
-    return { nombre: ordenados[0][0], victorias: ordenados[0][1] };
+    // Si cada piloto ganó exactamente 1 PE y hay más de 1 PE disputado → todos distintos
+    const maxVictorias = ordenados[0][1];
+    const todosDistintos = maxVictorias === 1 && ordenados.length > 1;
+
+    // Todos los que empatan en el máximo
+    const lideres = ordenados
+        .filter(([, v]) => v === maxVictorias)
+        .map(([nombre, victorias]) => ({ nombre, victorias }));
+
+    return { lideres, todosDistintos };
+}
+
+// Marca más ganadora: la marca con más victorias de tramo en la categoría
+function calcularMarcaMasGanadora(ganadoresPorTramo, categoria) {
+    const conteo = {};
+
+    ganadoresPorTramo.forEach(({ ganador }) => {
+        // Buscar el vehículo del piloto ganador
+        const piloto = pilotosDeCat(categoria).find(
+            p => (p.Nombre || p.NOMBRE) === ganador
+        );
+        if (!piloto) return;
+
+        const vehiculo = piloto.Vehiculo || piloto.VEHICULO || piloto.vehiculo || '';
+        if (!vehiculo) return;
+
+        const marca = vehiculo.trim().split(' ')[0]; // primera palabra = marca
+        if (!marca) return;
+
+        conteo[marca] = (conteo[marca] || 0) + 1;
+    });
+
+    const ordenados = Object.entries(conteo).sort((a, b) => b[1] - a[1]);
+    if (ordenados.length === 0) return null;
+
+    const maxVictorias = ordenados[0][1];
+    const marcasLideres = ordenados
+        .filter(([, v]) => v === maxVictorias)
+        .map(([marca, victorias]) => ({ marca, victorias }));
+
+    return { marcasLideres, todosDistintos: maxVictorias === 1 && ordenados.length > 1 };
 }
 
 // Velocidad promedio más alta registrada en un solo tramo para cualquier piloto de la categoría
@@ -619,6 +660,7 @@ function renderizarEstadisticasCategoria(categoria) {
     // const marcas        = calcularMarcas(categoria); // comentado por ahora
     const ganadoresPE      = calcularGanadoresPorTramo(categoria);
     const mayorGanador     = calcularMayorGanador(ganadoresPE);
+    const marcaMasGanadora = calcularMarcaMasGanadora(ganadoresPE, categoria);
     const velocidadMax     = calcularVelocidadMaxima(categoria);
     const consistente      = calcularPilotoMasConsistente(categoria);
     const remontadaTiempo  = calcularRemontadaPorTiempo(categoria);
@@ -670,16 +712,15 @@ function renderizarEstadisticasCategoria(categoria) {
         </div>
     `;
 
-    // ── HTML: ganadores por tramo + mayor ganador ──
+    // ── HTML: ganadores por tramo + tarjetas derechas ──
     let htmlFilasGanadores = '';
     if (ganadoresPE.length === 0) {
-        htmlFilasGanadores = `<tr><td colspan="4" class="no-data">Sin tiempos registrados</td></tr>`;
+        htmlFilasGanadores = `<tr><td colspan="3" class="no-data">Sin tiempos registrados</td></tr>`;
     } else {
-        ganadoresPE.forEach(({ pe, nombre, ganador, tiempo, velocidad }) => {
+        ganadoresPE.forEach(({ pe, ganador, tiempo }) => {
             htmlFilasGanadores += `
                 <tr class="fila-ganador-pe">
                     <td class="col-pos"><strong>PE ${pe}</strong></td>
-                    <td style="text-align:left; padding-left:14px;">${nombre}</td>
                     <td style="font-weight:700;">${ganador}</td>
                     <td class="col-tiempo">${tiempo}</td>
                 </tr>
@@ -687,16 +728,64 @@ function renderizarEstadisticasCategoria(categoria) {
         });
     }
 
-    const htmlMayorGanador = mayorGanador
-        ? `
-            <div class="tarjeta-mayor-ganador">
-                <div class="mayor-ganador-label">Mayor ganador de tramos</div>
-                <div class="mayor-ganador-nombre">${mayorGanador.nombre}</div>
-                <div class="mayor-ganador-victorias">${mayorGanador.victorias}</div>
-                <div class="mayor-ganador-victorias-label">victoria${mayorGanador.victorias !== 1 ? 's' : ''}</div>
-            </div>
-        `
-        : '';
+    // Tarjeta mayor ganador (con empates y caso todos-distintos)
+    let htmlMayorGanador = '';
+    if (mayorGanador) {
+        if (mayorGanador.todosDistintos) {
+            htmlMayorGanador = `
+                <div class="tarjeta-mayor-ganador">
+                    <div class="mayor-ganador-label">Mayor ganador de tramos</div>
+                    <div class="mayor-ganador-todos-distintos">Cada tramo fue ganado por un piloto diferente</div>
+                </div>
+            `;
+        } else {
+            const nombresHTML = mayorGanador.lideres
+                .map(l => `<div class="mayor-ganador-nombre">${l.nombre}</div>`)
+                .join('');
+            const etiqueta = mayorGanador.lideres.length > 1 ? 'Empate — Mayor ganadores de tramos' : 'Mayor ganador de tramos';
+            htmlMayorGanador = `
+                <div class="tarjeta-mayor-ganador">
+                    <div class="mayor-ganador-label">${etiqueta}</div>
+                    ${nombresHTML}
+                    <div class="mayor-ganador-victorias">${mayorGanador.lideres[0].victorias}</div>
+                    <div class="mayor-ganador-victorias-label">victoria${mayorGanador.lideres[0].victorias !== 1 ? 's' : ''}</div>
+                </div>
+            `;
+        }
+    }
+
+    // Tarjeta marca más ganadora
+    let htmlMarcaMasGanadora = '';
+    if (marcaMasGanadora) {
+        const { obtenerRutaLogoMarca } = window.UtilidadesIconos;
+        if (marcaMasGanadora.todosDistintos) {
+            htmlMarcaMasGanadora = `
+                <div class="tarjeta-mayor-ganador tarjeta-marca-ganadora">
+                    <div class="mayor-ganador-label">Marca más ganadora</div>
+                    <div class="mayor-ganador-todos-distintos">Cada tramo fue ganado por una marca diferente</div>
+                </div>
+            `;
+        } else {
+            const marcasHTML = marcaMasGanadora.marcasLideres.map(({ marca }) => {
+                const logo = obtenerRutaLogoMarca(marca + ' x');
+                return `
+                    <div class="marca-ganadora-fila">
+                        ${logo ? `<img src="${logo}" alt="${marca}" class="marca-ganadora-logo" onerror="this.style.display='none'">` : ''}
+                        <span class="mayor-ganador-nombre" style="margin:0;">${marca}</span>
+                    </div>
+                `;
+            }).join('');
+            const etiquetaMarca = marcaMasGanadora.marcasLideres.length > 1 ? 'Empate — Marcas más ganadoras' : 'Marca más ganadora';
+            htmlMarcaMasGanadora = `
+                <div class="tarjeta-mayor-ganador tarjeta-marca-ganadora">
+                    <div class="mayor-ganador-label">${etiquetaMarca}</div>
+                    ${marcasHTML}
+                    <div class="mayor-ganador-victorias">${marcaMasGanadora.marcasLideres[0].victorias}</div>
+                    <div class="mayor-ganador-victorias-label">victoria${marcaMasGanadora.marcasLideres[0].victorias !== 1 ? 's' : ''}</div>
+                </div>
+            `;
+        }
+    }
 
     const htmlGanadores = `
         <div class="ganadores-layout">
@@ -706,7 +795,6 @@ function renderizarEstadisticasCategoria(categoria) {
                     <thead>
                         <tr>
                             <th class="col-pos">PE</th>
-                            <th>Tramo</th>
                             <th>Ganador</th>
                             <th class="col-tiempo">Tiempo</th>
                         </tr>
@@ -714,7 +802,10 @@ function renderizarEstadisticasCategoria(categoria) {
                     <tbody>${htmlFilasGanadores}</tbody>
                 </table>
             </div>
-            ${htmlMayorGanador}
+            <div class="ganadores-derecha">
+                ${htmlMayorGanador}
+                ${htmlMarcaMasGanadora}
+            </div>
         </div>
     `;
 
