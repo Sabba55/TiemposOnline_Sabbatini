@@ -939,6 +939,7 @@ function renderizarEstadisticasCategoria(categoria) {
         return m > 0 ? `${m}m ${sStr}` : sStr;
     };
     const htmlTramoDisputado = tramoDisputado
+    
         ? `
             <div class="tarjeta-disputado">
                 <div class="seccion-titulo">Tramo más disputado</div>
@@ -991,6 +992,8 @@ function renderizarEstadisticasCategoria(categoria) {
             </div>
         `;
 
+    const htmlEvolucion = renderizarEvolucionTop5(categoria);
+
     // ── HTML: fila inferior ──
     const htmlFilaInferior = `
         <div class="fila-inferior">
@@ -1003,7 +1006,196 @@ function renderizarEstadisticasCategoria(categoria) {
         </div>
     `;
 
-    contenedor.innerHTML = htmlResumen + htmlGanadores + htmlFilaInferior;
+    contenedor.innerHTML = htmlResumen + htmlGanadores + htmlEvolucion + htmlFilaInferior;
+}
+
+// ── Evolución Top 5 ───────────────────────────────────────────────────────────
+
+function calcularEvolucionTop5(categoria) {
+    const totalPEs = datosTramos.length;
+    let ultimoPE = 0;
+    for (let i = totalPEs; i >= 1; i--) {
+        const col = `SS${i}`;
+        const hay = pilotosDeCat(categoria).some(p => p[col] && p[col].trim() !== '');
+        if (hay) { ultimoPE = i; break; }
+    }
+    if (ultimoPE === 0) return null;
+
+    // Posiciones acumuladas en cada PE
+    const snapshots = [];
+    for (let pe = 1; pe <= ultimoPE; pe++) {
+        snapshots.push(calcularPosicionesAcumuladas(categoria, pe));
+    }
+
+    // Recolectar todos los pilotos que estuvieron en top 5 en ALGÚN PE
+    const pilotosEnTop5 = new Set();
+    snapshots.forEach(snap => {
+        Object.entries(snap)
+            .filter(([, pos]) => pos <= 5)
+            .forEach(([nombre]) => pilotosEnTop5.add(nombre));
+    });
+
+    if (pilotosEnTop5.size === 0) return null;
+
+    // Para cada piloto, construir puntos SOLO en los PEs donde estuvo en top 5
+    const series = [...pilotosEnTop5].map(nombre => {
+        const puntos = [];
+        for (let pe = 1; pe <= ultimoPE; pe++) {
+            const pos = snapshots[pe - 1][nombre];
+            if (pos !== undefined && pos <= 5) {
+                puntos.push({ pe, pos });
+            }
+        }
+        // Posición final (en el último PE donde aparece)
+        const ultimoSnap = snapshots[ultimoPE - 1];
+        const posFinal = ultimoSnap[nombre] ?? null;
+        return { nombre, puntos, posFinal };
+    });
+
+    // Ordenar por posición final (los que terminaron mejor primero, los que salieron del top al final)
+    series.sort((a, b) => {
+        const pa = a.posFinal ?? 999;
+        const pb = b.posFinal ?? 999;
+        return pa - pb;
+    });
+
+    return { series, totalPEs: ultimoPE };
+}
+
+function renderizarEvolucionTop5(categoria) {
+    const data = calcularEvolucionTop5(categoria);
+    if (!data || data.series.length === 0 || data.totalPEs < 2) return '';
+
+    const { series, totalPEs } = data;
+
+    const W = 860, H = 260;
+    const PAD = { top: 20, right: 160, bottom: 40, left: 48 };
+    const gW = W - PAD.left - PAD.right;
+    const gH = H - PAD.top - PAD.bottom;
+
+    const xScale = pe => PAD.left + ((pe - 1) / Math.max(totalPEs - 1, 1)) * gW;
+    const yScale = pos => PAD.top + ((pos - 1) / 5) * gH;
+    const Y_FUERA = yScale(6);
+
+    const COLORES = [
+        '#ffab1a', '#3b82f6', '#22c55e', '#ef4444', '#a855f7',
+        '#06b6d4', '#f97316', '#ec4899', '#84cc16', '#14b8a6',
+        '#8b5cf6', '#f59e0b',
+    ];
+
+    let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;">`;
+    svg += `<rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>`;
+
+    // Grilla horizontal — solo posiciones 1 a 5
+    for (let pos = 1; pos <= 5; pos++) {
+        const y = yScale(pos);
+        svg += `<line x1="${PAD.left}" y1="${y}" x2="${PAD.left + gW}" y2="${y}"
+            stroke="#d7dde5" stroke-width="${pos === 1 ? 1.5 : 1}" stroke-dasharray="${pos === 1 ? 'none' : '4,3'}"/>`;
+        svg += `<text x="${PAD.left - 10}" y="${y + 4.5}" text-anchor="end"
+            font-size="11" font-weight="700" font-family="Orbitron,serif" fill="#5a6472">${pos}°</text>`;
+    }
+
+    // Grilla vertical por PE
+    for (let pe = 1; pe <= totalPEs; pe++) {
+        const x = xScale(pe);
+        svg += `<line x1="${x}" y1="${PAD.top}" x2="${x}" y2="${PAD.top + gH}"
+            stroke="#e2e8f0" stroke-width="1"/>`;
+        svg += `<text x="${x}" y="${PAD.top + gH + 18}" text-anchor="middle"
+            font-size="11" font-weight="600" font-family="Orbitron,serif" fill="#303743">PE ${pe}</text>`;
+    }
+
+    // Líneas y puntos por piloto
+    series.forEach(({ nombre, puntos }, idx) => {
+        if (puntos.length === 0) return;
+        const color = COLORES[idx % COLORES.length];
+
+        // Agrupar puntos en segmentos consecutivos dentro del top 5
+        const segmentos = [];
+        let segActual = null;
+
+        for (let pe = 1; pe <= totalPEs; pe++) {
+            const punto = puntos.find(p => p.pe === pe);
+            if (punto) {
+                if (!segActual) segActual = [];
+                segActual.push(punto);
+            } else {
+                if (segActual) {
+                    segmentos.push(segActual);
+                    segActual = null;
+                }
+            }
+        }
+        if (segActual) segmentos.push(segActual);
+
+        segmentos.forEach((seg, iSeg) => {
+            const primero = seg[0];
+            const ultimo = seg[seg.length - 1];
+
+            const esPrimerPE = primero.pe === 1;
+            const esUltimoPE = ultimo.pe === totalPEs;
+
+            // Línea de entrada: punteada desde Y_FUERA hasta el primer punto del segmento
+            if (!esPrimerPE) {
+                const dEntrada = `M${xScale(primero.pe - 1).toFixed(1)},${Y_FUERA.toFixed(1)} L${xScale(primero.pe).toFixed(1)},${yScale(primero.pos).toFixed(1)}`;
+                svg += `<path d="${dEntrada}" fill="none" stroke="${color}" stroke-width="2"
+                    stroke-dasharray="4,3" stroke-linecap="round" opacity="0.4"/>`;
+            }
+
+            // Línea sólida dentro del top 5
+            if (seg.length > 1) {
+                const dSolido = seg.map((p, i) =>
+                    `${i === 0 ? 'M' : 'L'}${xScale(p.pe).toFixed(1)},${yScale(p.pos).toFixed(1)}`
+                ).join(' ');
+                svg += `<path d="${dSolido}" fill="none" stroke="${color}" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>`;
+            }
+
+            // Línea de salida: punteada desde el último punto del segmento hacia Y_FUERA
+            if (!esUltimoPE) {
+                const dSalida = `M${xScale(ultimo.pe).toFixed(1)},${yScale(ultimo.pos).toFixed(1)} L${xScale(ultimo.pe + 1).toFixed(1)},${Y_FUERA.toFixed(1)}`;
+                svg += `<path d="${dSalida}" fill="none" stroke="${color}" stroke-width="2"
+                    stroke-dasharray="4,3" stroke-linecap="round" opacity="0.4"/>`;
+            }
+
+            // Puntos solo dentro del top 5
+            seg.forEach(({ pe, pos }) => {
+                svg += `<circle cx="${xScale(pe).toFixed(1)}" cy="${yScale(pos).toFixed(1)}"
+                    r="5" fill="${color}" stroke="white" stroke-width="2"/>`;
+            });
+        });
+
+        // Etiqueta al final del último segmento
+        const ultimoSeg = segmentos[segmentos.length - 1];
+        const ultimoPunto = ultimoSeg[ultimoSeg.length - 1];
+        const lx = (xScale(ultimoPunto.pe) + 10).toFixed(1);
+        const ly = (yScale(ultimoPunto.pos) + 4.5).toFixed(1);
+        const nombreCorto = nombre.length > 18 ? nombre.split(' ').slice(-1)[0] : nombre;
+        svg += `<text x="${lx}" y="${ly}" font-size="11.5" font-weight="700"
+            font-family="'Segoe UI',sans-serif" fill="${color}">${nombreCorto}</text>`;
+    });
+
+    svg += `</svg>`;
+
+    const leyenda = series.map(({ nombre }, idx) => {
+        const color = COLORES[idx % COLORES.length];
+        return `
+            <div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#161c25;">
+                <svg width="22" height="4"><rect width="22" height="4" rx="2" fill="${color}"/></svg>
+                <span>${nombre}</span>
+            </div>`;
+    }).join('');
+
+    return `
+        <div style="margin-bottom:30px;">
+            <div class="seccion-titulo">Evolución Top 5</div>
+            <div style="background:#f8fafc;border:1.5px solid #d7dde5;border-radius:12px;padding:18px 18px 10px;box-shadow:0 4px 14px rgba(15,23,42,0.07);">
+                ${svg}
+                <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;padding-top:10px;border-top:1px solid #e2e8f0;justify-content:center;">
+                    ${leyenda}
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 // ── Carga de datos ────────────────────────────────────────────────────────────
