@@ -1221,7 +1221,6 @@ async function cargarDatos() {
         const categorias = obtenerCategoriasConTiempos();
         renderizarBotonesCategorias(categorias);
 
-        // Seleccionar la primera categoría automáticamente si no hay ninguna activa
         if (!categoriaActiva && categorias.length > 0) {
             seleccionarCategoria(categorias[0]);
         } else if (categoriaActiva) {
@@ -1233,9 +1232,14 @@ async function cargarDatos() {
 
         actualizarUltimaActualizacion();
     } catch (error) {
-        document.getElementById('content').innerHTML =
-            '<div class="error">Error al cargar los datos.</div>';
-        console.error('Error:', error);
+        // Solo mostrar error si no hay datos previos (primera carga)
+        const hayDatos = datosPilotos.length > 0 || datosTramos.length > 0;
+        if (!hayDatos) {
+            document.getElementById('content').innerHTML =
+                '<div class="error">Error al cargar los datos.</div>';
+        }
+        // Si ya había datos, simplemente ignoramos el error silenciosamente
+        console.error('Error al recargar:', error);
     }
 }
 
