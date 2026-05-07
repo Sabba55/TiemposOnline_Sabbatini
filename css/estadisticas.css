@@ -771,7 +771,7 @@ tr:hover td { background-color: #e9edf2 !important; }
 .disputado-nombre {
     font-size: 13px;
     font-weight: 600;
-    color: var(--color-texto-suave);
+    color: black;
     line-height: 1.4;
 }
 
@@ -841,8 +841,8 @@ tr:hover td { background-color: #e9edf2 !important; }
     background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
 }
 
-.perdida-pos-mejor { color: #16a34a; }
-.perdida-pos-fin   { color: #dc2626; }
+.perdida-pos-mejor { color: #16a34a !important; }
+.perdida-pos-fin   { color: #dc2626 !important; }
 
 .perdida-flecha { color: #dc2626; }
 

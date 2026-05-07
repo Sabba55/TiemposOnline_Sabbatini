@@ -295,13 +295,23 @@ function calcularTramoMasDisputado(categoria) {
         const dif = tiempos[1] - tiempos[0];
         if (dif < menorDif) {
             menorDif = dif;
+
+            // Obtener nombres del 1° y 2° en este tramo
+            const pilotosOrdenados = pilotosDeCat(categoria)
+                .filter(p => p[columna] && p[columna].trim() !== '' && !esDNF(p[columna]))
+                .map(p => ({ nombre: p.Nombre || p.NOMBRE || '', seg: tiempoASegundos(p[columna]) }))
+                .filter(p => p.seg < 999999)
+                .sort((a, b) => a.seg - b.seg);
+
             resultado = {
                 pe,
                 kms: tramo.KMS || null,
                 nombre: tramo.Desde && tramo.Hasta ? `${tramo.Desde} - ${tramo.Hasta}` : `PE ${pe}`,
                 difSegundos: dif,
                 tiempo1: segundosATiempo(tiempos[0], 3),
-                tiempo2: segundosATiempo(tiempos[1], 3)
+                tiempo2: segundosATiempo(tiempos[1], 3),
+                piloto1: pilotosOrdenados[0]?.nombre ?? '',
+                piloto2: pilotosOrdenados[1]?.nombre ?? ''
             };
         }
     });
@@ -960,10 +970,24 @@ function renderizarEstadisticasCategoria(categoria) {
                 </div>
                 <div class="disputado-dif">${fmtDifDisputado(tramoDisputado.difSegundos)}</div>
                 <div class="disputado-dif-label">de diferencia entre 1° y 2°</div>
+
                 <div class="disputado-tiempos">
-                    <span><span class="disputado-badge disputado-badge-1">1</span>${tramoDisputado.tiempo1}</span>
-                    <span><span class="disputado-badge disputado-badge-2">2</span>${tramoDisputado.tiempo2}</span>
+                    <span>
+                        <span class="disputado-badge disputado-badge-1">1</span>
+                        <span style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
+                            <span style="font-size:11px;font-weight:600;color:#334155;">${tramoDisputado.piloto1}</span>
+                            <span>${tramoDisputado.tiempo1}</span>
+                        </span>
+                    </span>
+                    <span>
+                        <span class="disputado-badge disputado-badge-2">2</span>
+                        <span style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
+                            <span style="font-size:11px;font-weight:600;color:#334155;">${tramoDisputado.piloto2}</span>
+                            <span>${tramoDisputado.tiempo2}</span>
+                        </span>
+                    </span>
                 </div>
+
             </div>
         `
         : `
