@@ -739,10 +739,28 @@ function renderizarEstadisticasCategoria(categoria) {
         htmlFilasGanadores = `<tr><td colspan="3" class="no-data">Sin tiempos registrados</td></tr>`;
     } else {
         ganadoresPE.forEach(({ pe, ganador, tiempo }) => {
+            const pilotoData = pilotosDeCat(categoria).find(
+                p => (p.Nombre || p.NOMBRE) === ganador
+            );
+            const vehiculo = pilotoData
+                ? (pilotoData.Vehiculo || pilotoData.VEHICULO || pilotoData.vehiculo || '—')
+                : '—';
+            const rutaLogo = obtenerRutaLogoMarca(vehiculo);
+            const marca = vehiculo.trim().split(' ')[0];
+
             htmlFilasGanadores += `
                 <tr>
                     <td class="col-pos"><div class="pe-cell"><span class="pe-badge">PE ${pe}</span></div></td>
                     <td class="col-ganador"><div class="piloto-cell">${ganador}</div></td>
+                    <td class="col-vehicle">
+                        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;justify-content: center;">
+                            ${rutaLogo
+                                ? `<img src="${rutaLogo}" alt="${marca}" style="height:18px;object-fit:contain;"
+                                    onerror="this.style.display='none'">`
+                                : ''}
+                            <span style="font-size:13px;font-weight:600;color:var(--color-texto);">${vehiculo}</span>
+                        </div>
+                    </td>
                     <td class="col-tiempo tiempo-cell"><span class="tiempo-val">${tiempo}</span></td>
                 </tr>
             `;
@@ -819,7 +837,8 @@ function renderizarEstadisticasCategoria(categoria) {
                         <thead>
                             <tr>
                                 <th class="center">PE</th>
-                                <th>Ganador</th>
+                                <th class="center">Ganador</th>
+                                <th class="center">Vehículo</th>
                                 <th class="center">Tiempo</th>
                             </tr>
                         </thead>
@@ -1028,6 +1047,7 @@ function renderizarEstadisticasCategoria(categoria) {
         `;
 
     const htmlEvolucion = renderizarEvolucionTop5(categoria);
+    const htmlHeatmap = renderizarHeatmapRendimiento(categoria);
 
     // ── HTML: fila inferior ──
     const htmlFilaInferior = `
@@ -1041,7 +1061,7 @@ function renderizarEstadisticasCategoria(categoria) {
         </div>
     `;
 
-    contenedor.innerHTML = htmlResumen + htmlGanadores + htmlEvolucion + htmlFilaInferior;
+    contenedor.innerHTML = htmlResumen + htmlGanadores + htmlEvolucion + htmlHeatmap + htmlFilaInferior;
 }
 
 // ── Evolución Top 5 ───────────────────────────────────────────────────────────
@@ -1231,6 +1251,283 @@ function renderizarEvolucionTop5(categoria) {
             </div>
         </div>
     `;
+}
+
+// ── Heatmap de Rendimiento ────────────────────────────────────────────────────
+
+// ── Heatmap de Rendimiento ────────────────────────────────────────────────────
+function renderizarHeatmapRendimiento(categoria) {
+    const totalPEs = datosTramos.length;
+
+    let ultimoPE = 0;
+    for (let i = totalPEs; i >= 1; i--) {
+        const col = `SS${i}`;
+        const hay = pilotosDeCat(categoria).some(p => p[col] && p[col].trim() !== '');
+        if (hay) { ultimoPE = i; break; }
+    }
+    if (ultimoPE === 0) return '';
+
+    const pilotos = pilotosDeCat(categoria);
+    if (pilotos.length === 0) return '';
+
+    // Clasificación general final → top 5
+    const posicionesFinales = calcularPosicionesAcumuladas(categoria, ultimoPE);
+    const top5Nombres = Object.entries(posicionesFinales)
+        .sort((a, b) => a[1] - b[1])
+        .slice(0, 5)
+        .map(([nombre]) => nombre);
+
+    const top5Pilotos = top5Nombres
+        .map(nombre => pilotos.find(p => (p.Nombre || p.NOMBRE) === nombre))
+        .filter(Boolean);
+
+    if (top5Pilotos.length === 0) return '';
+
+    // Calcular tiempo acumulado real de cada piloto hasta cada PE
+    // Devuelve null si no completó hasta ese PE
+    function tiempoAcumuladoHastaPE(piloto, hastaPE) {
+        let total = 0;
+        for (let pe = 1; pe <= hastaPE; pe++) {
+            const col = `SS${pe}`;
+            const t = piloto[col];
+            if (!t || t.trim() === '') return null;
+            if (esDNF(t)) {
+                // Usar peor tiempo + 60s del grupo en ese PE
+                const grupo = pilotosDeCat(categoria)
+                    .filter(p => p[col])
+                    .map(p => ({ tiempoSegundos: tiempoASegundos(p[col]), tieneDNF: esDNF(p[col]) }));
+                total += calcularTiempoDNF(obtenerPeorTiempo(grupo));
+            } else {
+                const seg = tiempoASegundos(t);
+                if (seg >= 999999) return null;
+                total += seg;
+            }
+        }
+        // Penalización
+        const pen = tiempoASegundos(piloto.PENALIZACION || piloto.Penalizacion || '');
+        return total + (pen < 999999 ? pen : 0);
+    }
+
+    // Para cada PE: tiempo acumulado del líder (mínimo entre todos los pilotos)
+    const tiempoLiderPorPE = {};
+    for (let pe = 1; pe <= ultimoPE; pe++) {
+        let minimo = Infinity;
+        pilotos.forEach(p => {
+            const t = tiempoAcumuladoHastaPE(p, pe);
+            if (t !== null && t < minimo) minimo = t;
+        });
+        tiempoLiderPorPE[pe] = minimo < Infinity ? minimo : null;
+    }
+
+    // Color según variación de diferencia entre PE anterior y PE actual
+    // difActual  = tiempo_acumulado_piloto - tiempo_lider  (en PE actual)
+    // difAnterior = idem en PE anterior (o 0 si es el primer PE)
+    // delta = difActual - difAnterior
+    //   delta < 0 → recortó → celeste
+    //   delta > 0 → perdió → cálido
+    //   delta = 0 → igual → verde
+
+    function obtenerColor(delta, esDNFVal, sinDato) {
+        if (sinDato)   return { bg: '#e2e8f0', text: '#94a3b8' };
+        if (esDNFVal)  return { bg: '#f87171', text: '#7f1d1d' };
+        if (delta < -0.001)  {
+            // Recortó → celeste, más intenso cuanto más recortó
+            if (delta < -20)  return { bg: '#0ea5e9', text: '#ffffff' };
+            if (delta < -8)   return { bg: '#38bdf8', text: '#0c4a6e' };
+            if (delta < -3)   return { bg: '#7dd3fc', text: '#0c4a6e' };
+                              return { bg: '#bae6fd', text: '#0369a1' };
+        }
+        if (delta > 0.001) {
+            // Perdió → cálido
+            if (delta > 20)  return { bg: '#f4694b', text: '#5a0d00' };
+            if (delta > 8)   return { bg: '#ffb347', text: '#6b2500' };
+            if (delta > 3)   return { bg: '#ffe066', text: '#6b4700' };
+                             return { bg: '#c8e87a', text: '#2d4a00' };
+        }
+        // Neutro / líder
+        return { bg: '#a3d977', text: '#1a3a00' };
+    }
+
+    function formatearDelta(seg) {
+        const abs = Math.abs(seg);
+        const m = Math.floor(abs / 60);
+        const s = (abs % 60).toFixed(3).padStart(6, '0');
+        const base = m > 0 ? `${m}:${s}` : `${parseFloat(s).toFixed(3)}`;
+        return seg <= -0.001 ? `-${base}` : `+${base}`;
+    }
+
+    // KMS por PE
+    function kmsDelPE(pe) {
+        const tramo = datosTramos.find(t => String(t.PE) === String(pe));
+        return tramo && tramo.KMS ? `${parseFloat(tramo.KMS).toFixed(2)} km` : '';
+    }
+
+    const COLORES_POS = ['#f5b800', '#6c9de8', '#3db87a', '#e84a4a', '#9b6be8'];
+
+    // Encabezados PE
+    const thPEs = Array.from({ length: ultimoPE }, (_, i) => {
+        const pe = i + 1;
+        const kms = kmsDelPE(pe);
+        return `
+            <th style="
+                background:#0f172a;color:#e8edf3;padding:12px 10px 10px;
+                text-align:center;font-family:'Orbitron',serif;font-size:13px;
+                font-weight:700;min-width:100px;border-left:1px solid #1e293b;
+            ">
+                PE${pe}
+                ${kms ? `<div style="font-size:10px;font-weight:500;color:#94a3b8;margin-top:3px;font-family:'Segoe UI',sans-serif;">${kms}</div>` : ''}
+            </th>`;
+    }).join('');
+
+    // Filas
+    const filas = top5Pilotos.map((piloto, idx) => {
+        const nombre = piloto.Nombre || piloto.NOMBRE || '';
+        const pos = posicionesFinales[nombre] ?? (idx + 1);
+        const colorPos = COLORES_POS[idx] || '#64748b';
+        const esLider = idx === 0;
+
+        const celdas = Array.from({ length: ultimoPE }, (_, i) => {
+            const pe = i + 1;
+            const col = `SS${pe}`;
+            const tiempoCelda = piloto[col];
+            const liderAcum = tiempoLiderPorPE[pe];
+
+            // Líder siempre 0.000
+            if (esLider) {
+                const colorInfo = obtenerColor(0, false, false);
+                return `<td style="background:${colorInfo.bg};color:${colorInfo.text};
+                    text-align:center;padding:16px 8px;font-size:14px;font-weight:700;
+                    border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">
+                    0.000
+                </td>`;
+            }
+
+            // Sin dato
+            if (!tiempoCelda || tiempoCelda.trim() === '') {
+                const colorInfo = obtenerColor(0, false, true);
+                return `<td style="background:${colorInfo.bg};color:${colorInfo.text};
+                    text-align:center;padding:16px 8px;font-size:14px;font-weight:700;
+                    border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">
+                    —
+                </td>`;
+            }
+
+            // DNF
+            if (esDNF(tiempoCelda)) {
+                const colorInfo = obtenerColor(0, true, false);
+                return `<td style="background:${colorInfo.bg};color:${colorInfo.text};
+                    text-align:center;padding:16px 8px;font-size:14px;font-weight:700;
+                    border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">
+                    DNF
+                </td>`;
+            }
+
+            // Diferencia acumulada actual vs lider
+            const acumActual = tiempoAcumuladoHastaPE(piloto, pe);
+            if (acumActual === null || liderAcum === null) {
+                const colorInfo = obtenerColor(0, false, true);
+                return `<td style="background:${colorInfo.bg};color:${colorInfo.text};
+                    text-align:center;padding:16px 8px;font-size:14px;font-weight:700;
+                    border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">
+                    —
+                </td>`;
+            }
+
+            const difActual = acumActual - liderAcum;
+
+            // Diferencia acumulada en PE anterior
+            let difAnterior = 0;
+            if (pe > 1) {
+                const acumAnt = tiempoAcumuladoHastaPE(piloto, pe - 1);
+                const liderAnt = tiempoLiderPorPE[pe - 1];
+                if (acumAnt !== null && liderAnt !== null) {
+                    difAnterior = acumAnt - liderAnt;
+                }
+            }
+
+            // delta: cuánto cambió la diferencia en este PE
+            // negativo = recortó, positivo = perdió
+            const delta = difActual - difAnterior;
+            const colorInfo = obtenerColor(delta, false, false);
+
+            const signo = delta <= -0.001 ? '' : '+';
+            const displayText = formatearDelta(delta);
+
+
+            return `<td style="background:${colorInfo.bg};color:${colorInfo.text};
+                text-align:center;padding:16px 8px;font-size:14px;font-weight:700;
+                border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">
+                ${displayText}
+            </td>`;
+        }).join('');
+
+        const bgFila = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+
+        return `
+            <tr style="background:${bgFila};">
+                <td style="padding:0;width:52px;border-right:1px solid #e2e8f0;">
+                    <div style="display:flex;align-items:center;height:100%;min-height:56px;">
+                        <div style="width:5px;background:${colorPos};align-self:stretch;flex-shrink:0;"></div>
+                        <div style="flex:1;text-align:center;font-family:'Orbitron',serif;
+                            font-size:18px;font-weight:800;color:#0f172a;padding:16px 8px;">
+                            ${pos}
+                        </div>
+                    </div>
+                </td>
+                <td style="padding:16px;font-size:13px;font-weight:700;color:#0f172a;
+                    border-right:1px solid #e2e8f0;white-space:nowrap;min-width:140px;">
+                    ${nombre}
+                </td>
+                ${celdas}
+            </tr>`;
+    }).join('');
+
+    const leyendaItems = [
+        { color: '#0ea5e9', text: 'Recortó +20s' },
+        { color: '#38bdf8', text: 'Recortó 8–20s' },
+        { color: '#7dd3fc', text: 'Recortó 3–8s' },
+        { color: '#bae6fd', text: 'Recortó ≤3s' },
+        { color: '#a3d977', text: 'Líder' },
+        { color: '#c8e87a', text: 'Perdió ≤3s' },
+        { color: '#ffe066', text: 'Perdió 3–8s' },
+        { color: '#ffb347', text: 'Perdió 8–20s' },
+        { color: '#f4694b', text: 'Perdió +20s' },
+        { color: '#f87171', text: 'DNF' },
+    ];
+
+    const leyendaHTML = leyendaItems.map(({ color, text }) => `
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;">
+            <div style="width:20px;height:14px;background:${color};border-radius:3px;"></div>
+            <span>${text}</span>
+        </div>`).join('');
+
+    return `
+        <div style="margin-bottom:30px;">
+            <div class="seccion-titulo">Heatmap de Rendimiento por Tramo</div>
+            <div style="background:#f8fafc;border:1.5px solid #d7dde5;border-radius:12px;
+                padding:18px;box-shadow:0 4px 14px rgba(15,23,42,0.07);overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;border-radius:10px;
+                    overflow:hidden;box-shadow:0 4px 16px rgba(15,23,42,0.12);">
+                    <thead>
+                        <tr>
+                            <th style="background:#0f172a;color:#e8edf3;padding:12px 10px;
+                                text-align:center;font-size:11px;font-weight:700;
+                                letter-spacing:1px;text-transform:uppercase;width:52px;">POS</th>
+                            <th style="background:#0f172a;color:#e8edf3;padding:12px 16px;
+                                text-align:left;font-size:11px;font-weight:700;
+                                letter-spacing:1px;text-transform:uppercase;
+                                border-left:1px solid #1e293b;">PILOTO</th>
+                            ${thPEs}
+                        </tr>
+                    </thead>
+                    <tbody>${filas}</tbody>
+                </table>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;
+                    padding-top:12px;border-top:1px solid #e2e8f0;justify-content:center;">
+                    ${leyendaHTML}
+                </div>
+            </div>
+        </div>`;
 }
 
 // ── Carga de datos ────────────────────────────────────────────────────────────

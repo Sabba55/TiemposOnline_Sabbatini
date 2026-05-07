@@ -358,6 +358,7 @@ tr:hover td { background-color: #e9edf2 !important; }
 .col-pos  { width: 1%; }
 .col-tiempo { width: 25%; }
 .col-ganador { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-vehicle { width: 30%;}
 
 .pe-cell {
     display: flex;
