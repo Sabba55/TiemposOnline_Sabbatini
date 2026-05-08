@@ -1448,7 +1448,7 @@ function renderizarHeatmapRendimiento(categoria) {
         { color: '#38bdf8', text: 'Recortó 8–20s' },
         { color: '#7dd3fc', text: 'Recortó 3–8s' },
         { color: '#bae6fd', text: 'Recortó ≤3s' },
-        { color: '#a3d977', text: 'Ganador final' },
+        { color: '#a3d977', text: 'Lider' },
         { color: '#c8e87a', text: 'Perdió ≤3s' },
         { color: '#ffe066', text: 'Perdió 3–8s' },
         { color: '#ffb347', text: 'Perdió 8–20s' },
@@ -1479,7 +1479,7 @@ function renderizarHeatmapRendimiento(categoria) {
                                 text-align:center;font-size:11px;font-weight:700;
                                 letter-spacing:1px;text-transform:uppercase;width:52px;">POS</th>
                             <th style="background:#0f172a;color:#e8edf3;padding:12px 16px;
-                                text-align:left;font-size:11px;font-weight:700;
+                                text-align:center;font-size:11px;font-weight:700;
                                 letter-spacing:1px;text-transform:uppercase;
                                 border-left:1px solid #1e293b;">PILOTO</th>
                             ${thPEs}
