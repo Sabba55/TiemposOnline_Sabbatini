@@ -661,6 +661,7 @@ function renderizarBotonesCategorias(categorias) {
 
 function seleccionarCategoria(categoria) {
     categoriaActiva = categoria;
+    sessionStorage.setItem('categoriaActiva', categoria);
 
     // Actualizar estado visual de botones
     document.querySelectorAll('.btn-categoria').forEach(btn => {
@@ -877,24 +878,40 @@ function renderizarEstadisticasCategoria(categoria) {
 
     // ── HTML: piloto más consistente ──
     const htmlConsistente = consistente
-        ? `
-            <div class="tarjeta-consistencia">
-                <div class="seccion-titulo">Piloto más consistente</div>
-                <div class="consistencia-piloto">${consistente.nombre}</div>
-                <div class="consistencia-desvio">${consistente.desvio}%</div>
-                <div class="consistencia-desvio-label">variación promedio</div>
-                <div class="consistencia-explicacion">
-                    Menor variación porcentual de tiempos entre tramos repetidos.
-                    Cuanto más bajo, más regular es el piloto.
+        ? (() => {
+            const totalPEsConsistente = datosTramos.length;
+            let ultimoPEConsistente = 0;
+            for (let i = totalPEsConsistente; i >= 1; i--) {
+                if (pilotosDeCat(categoria).some(p => p[`SS${i}`] && p[`SS${i}`].trim() !== '')) {
+                    ultimoPEConsistente = i; break;
+                }
+            }
+            const posFinConsistente = ultimoPEConsistente > 0
+                ? calcularPosicionesAcumuladas(categoria, ultimoPEConsistente)[consistente.nombre] ?? null
+                : null;
+
+            return `
+                <div class="tarjeta-consistencia">
+                    <div class="seccion-titulo">Piloto más consistente</div>
+                    <div class="consistencia-piloto">${consistente.nombre}</div>
+                    ${posFinConsistente !== null
+                        ? `<div class="consistencia-pos-final">Finalizó <strong>${posFinConsistente}°</strong></div>`
+                        : ''}
+                    <div class="consistencia-desvio">${consistente.desvio}%</div>
+                    <div class="consistencia-desvio-label">variación promedio</div>
+                    <div class="consistencia-explicacion">
+                        Menor variación porcentual de tiempos entre tramos repetidos.
+                        Cuanto más bajo, más regular es el piloto.
+                    </div>
                 </div>
-            </div>
-        `
+            `;
+        })()
         : `
             <div class="tarjeta-consistencia">
                 <div class="seccion-titulo">Piloto más consistente</div>
                 <div class="no-data">Sin información</div>
             </div>
-        `;
+    `;
 
     // ── HTML: mejor remontada por TIEMPO recortado al líder ──
     const fmtDif = seg => {
@@ -1528,7 +1545,10 @@ async function cargarDatos() {
         const categorias = obtenerCategoriasConTiempos();
         renderizarBotonesCategorias(categorias);
 
-        if (!categoriaActiva && categorias.length > 0) {
+        const categoriaGuardada = sessionStorage.getItem('categoriaActiva');
+        if (!categoriaActiva && categoriaGuardada && categorias.includes(categoriaGuardada)) {
+            seleccionarCategoria(categoriaGuardada);
+        } else if (!categoriaActiva && categorias.length > 0) {
             seleccionarCategoria(categorias[0]);
         } else if (categoriaActiva) {
             seleccionarCategoria(categoriaActiva);

@@ -851,3 +851,14 @@ tr:hover td { background-color: #e9edf2 !important; }
     background: #fef2f2;
     color: #dc2626;
 }
+
+.consistencia-pos-final {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-texto-suave);
+    margin-bottom: 6px;
+}
+
+.consistencia-pos-final strong {
+    color: rgb(48, 48, 48);
+}
