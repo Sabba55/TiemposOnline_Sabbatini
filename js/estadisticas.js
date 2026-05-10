@@ -1363,13 +1363,23 @@ function renderizarHeatmapRendimiento(categoria) {
             const col = `SS${pe}`;
 
             if (esGanadorFinal) {
+                const tiempoGanadorFinal = piloto[col];
                 const colorInfo = obtenerColor(0, false, false, true);
+                let displayVal = '—';
+                if (tiempoGanadorFinal && tiempoGanadorFinal.trim() !== '') {
+                    if (esDNF(tiempoGanadorFinal)) {
+                        displayVal = 'DNF';
+                    } else {
+                        const seg = tiempoASegundos(tiempoGanadorFinal);
+                        displayVal = seg < 999999 ? segundosATiempo(seg, 3) : '—';
+                    }
+                }
                 return `
                     <td style="
                         background:${colorInfo.bg};color:${colorInfo.text};
                         text-align:center;padding:16px 8px;font-size:14px;font-weight:700;
                         border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;
-                    ">0.000</td>`;
+                    ">${displayVal}</td>`;
             }
 
             const tiempoPiloto = piloto[col];
