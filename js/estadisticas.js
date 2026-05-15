@@ -9,6 +9,7 @@ const { obtenerRutaLogoMarca, obtenerMarcaVehiculo } = window.UtilidadesIconos;
 let datosPilotos = [];
 let datosTramos  = [];
 let categoriaActiva = null;
+let estadoHeatmap = {};
 
 // ── Parseo de CSVs ────────────────────────────────────────────────────────────
 function analizarPilotosCSV(csv) {
@@ -1288,18 +1289,17 @@ function renderizarHeatmapRendimiento(categoria) {
 
     const posicionesFinales = calcularPosicionesAcumuladas(categoria, ultimoPE);
 
-    const top5Nombres = Object.entries(posicionesFinales)
+    const todosNombres = Object.entries(posicionesFinales)
         .sort((a, b) => a[1] - b[1])
-        .slice(0, 5)
         .map(([nombre]) => nombre);
 
-    const top5Pilotos = top5Nombres
+    const todosPilotos = todosNombres
         .map(nombre => pilotos.find(p => (p.Nombre || p.NOMBRE) === nombre))
         .filter(Boolean);
 
-    if (top5Pilotos.length === 0) return '';
+    if (todosPilotos.length === 0) return '';
 
-    const ganadorFinalNombre = top5Nombres[0];
+    const ganadorFinalNombre = todosNombres[0];
 
     const ganadorFinal = pilotos.find(
         p => (p.Nombre || p.NOMBRE || '') === ganadorFinalNombre
@@ -1308,8 +1308,8 @@ function renderizarHeatmapRendimiento(categoria) {
     if (!ganadorFinal) return '';
 
     function obtenerColor(delta, esDNFVal, sinDato, esGanador = false) {
-        if (sinDato)  return { bg: '#e2e8f0', text: '#94a3b8' };
-        if (esDNFVal) return { bg: '#f87171', text: '#7f1d1d' };
+        if (sinDato)   return { bg: '#e2e8f0', text: '#94a3b8' };
+        if (esDNFVal)  return { bg: '#f87171', text: '#7f1d1d' };
         if (esGanador) return { bg: '#a3d977', text: '#1a3a00' };
 
         if (delta < -0.001) {
@@ -1331,12 +1331,10 @@ function renderizarHeatmapRendimiento(categoria) {
 
     function formatearDelta(seg) {
         if (Math.abs(seg) < 0.001) return '0.000';
-
         const abs = Math.abs(seg);
         const m = Math.floor(abs / 60);
         const s = (abs % 60).toFixed(3).padStart(6, '0');
         const base = m > 0 ? `${m}:${s}` : `${parseFloat(s).toFixed(3)}`;
-
         return seg < 0 ? `-${base}` : `+${base}`;
     }
 
@@ -1345,7 +1343,9 @@ function renderizarHeatmapRendimiento(categoria) {
         return tramo && tramo.KMS ? `${parseFloat(tramo.KMS).toFixed(2)} km` : '';
     }
 
-    const COLORES_POS = ['#f5b800', '#6c9de8', '#3db87a', '#e84a4a', '#9b6be8'];
+    const COLORES_POS = ['#f5b800', '#6c9de8', '#3db87a', '#e84a4a', '#9b6be8',
+                         '#06b6d4', '#f97316', '#ec4899', '#84cc16', '#14b8a6',
+                         '#8b5cf6', '#f59e0b', '#64748b'];
 
     const thPEs = Array.from({ length: ultimoPE }, (_, i) => {
         const pe = i + 1;
@@ -1361,19 +1361,16 @@ function renderizarHeatmapRendimiento(categoria) {
             </th>`;
     }).join('');
 
-    const filas = top5Pilotos.map((piloto, idx) => {
+    const todasLasFilas = todosPilotos.map((piloto, idx) => {
         const nombre = piloto.Nombre || piloto.NOMBRE || '';
         const pos = posicionesFinales[nombre] ?? (idx + 1);
-        const colorPos = COLORES_POS[idx] || '#64748b';
+        const colorPos = COLORES_POS[idx % COLORES_POS.length];
         const esGanadorFinal = nombre === ganadorFinalNombre;
 
-        // Penalización
         const penRaw = piloto.PENALIZACION || piloto.Penalizacion || '';
         const penSeg = tiempoASegundos(penRaw);
         const tienePen = penSeg > 0 && penSeg < 999999;
-        const penDisplay = tienePen
-            ? segundosATiempo(penSeg, 2)
-            : null;
+        const penDisplay = tienePen ? segundosATiempo(penSeg, 2) : null;
 
         const celdas = Array.from({ length: ultimoPE }, (_, i) => {
             const pe = i + 1;
@@ -1468,7 +1465,7 @@ function renderizarHeatmapRendimiento(categoria) {
                 </td>
                 ${celdas}
             </tr>`;
-    }).join('');
+    });
 
     const leyendaItems = [
         { color: '#0ea5e9', text: 'Recortó +20s' },
@@ -1488,6 +1485,66 @@ function renderizarHeatmapRendimiento(categoria) {
             <div style="width:20px;height:14px;background:${color};border-radius:3px;"></div>
             <span>${text}</span>
         </div>`).join('');
+
+    const PAGINA = 5;
+    const heatmapId = `heatmap-tbody-${categoria.replace(/\s+/g, '')}`;
+    const btnId = `heatmap-btn-${categoria.replace(/\s+/g, '')}`;
+    const hayMas = todosPilotos.length > PAGINA;
+
+    window._heatmapFilas = window._heatmapFilas || {};
+    window._heatmapFilas[heatmapId] = todasLasFilas;
+
+    // ── Restaurar estado previo tras recarga automática ──
+    const estadoPrevio = estadoHeatmap[heatmapId];
+    if (estadoPrevio && estadoPrevio.visible > PAGINA) {
+        setTimeout(() => {
+            const tbody = document.getElementById(heatmapId);
+            const container = document.getElementById(`${btnId}-container`);
+            if (!tbody || !container) return;
+
+            tbody.innerHTML = window._heatmapFilas[heatmapId].slice(0, estadoPrevio.visible).join('');
+
+            const btnExpandir = container.querySelector('button:not([data-ocultar])');
+            if (btnExpandir) {
+                btnExpandir.dataset.visible = estadoPrevio.visible;
+                if (estadoPrevio.visible >= todosPilotos.length) {
+                    btnExpandir.style.display = 'none';
+                }
+            }
+
+            if (!container.querySelector('[data-ocultar]')) {
+                const btnOcultar = document.createElement('button');
+                btnOcultar.dataset.ocultar = 'true';
+                btnOcultar.dataset.heatmap = heatmapId;
+                btnOcultar.textContent = '▲ Ocultar';
+                btnOcultar.style.cssText = `
+                    background:linear-gradient(135deg,#374151 0%,#4b5563 100%);
+                    color:#e8edf3;border:none;border-radius:8px;padding:10px 28px;
+                    font-family:'Orbitron',serif;font-size:13px;font-weight:600;
+                    cursor:pointer;letter-spacing:0.5px;
+                    box-shadow:0 4px 12px rgba(15,23,42,0.25);
+                    transition:all 0.2s ease;
+                `;
+                btnOcultar.onmouseover = () => btnOcultar.style.transform = 'translateY(-2px)';
+                btnOcultar.onmouseout  = () => btnOcultar.style.transform = 'translateY(0)';
+                btnOcultar.onclick = () => {
+                    const filas = Array.from(tbody.querySelectorAll('tr'));
+                    filas.slice(PAGINA).forEach(f => f.classList.add('heatmap-ocultando'));
+                    setTimeout(() => {
+                        tbody.classList.remove('heatmap-tbody-animado');
+                        tbody.innerHTML = window._heatmapFilas[heatmapId].slice(0, PAGINA).join('');
+                        if (btnExpandir) {
+                            btnExpandir.dataset.visible = PAGINA;
+                            btnExpandir.style.display = '';
+                        }
+                        delete estadoHeatmap[heatmapId];
+                        btnOcultar.remove();
+                    }, 260);
+                };
+                container.appendChild(btnOcultar);
+            }
+        }, 0);
+    }
 
     return `
         <div style="margin-bottom:30px;">
@@ -1512,14 +1569,106 @@ function renderizarHeatmapRendimiento(categoria) {
                             ${thPEs}
                         </tr>
                     </thead>
-                    <tbody>${filas}</tbody>
+                    <tbody id="${heatmapId}">${todasLasFilas.slice(0, PAGINA).join('')}</tbody>
                 </table>
+
+                ${hayMas ? `
+                    <div id="${btnId}-container" style="display:flex;justify-content:center;gap:10px;margin-top:14px;">
+                        <button
+                            data-visible="${PAGINA}"
+                            data-total="${todosPilotos.length}"
+                            data-heatmap="${heatmapId}"
+                            onclick="expandirHeatmap(this)"
+                            style="
+                                background:linear-gradient(135deg,#0f172a 0%,#232830 100%);
+                                color:#e8edf3;border:none;border-radius:8px;padding:10px 28px;
+                                font-family:'Orbitron',serif;font-size:13px;font-weight:600;
+                                cursor:pointer;letter-spacing:0.5px;
+                                box-shadow:0 4px 12px rgba(15,23,42,0.25);
+                                transition:all 0.2s ease;
+                            "
+                            onmouseover="this.style.transform='translateY(-2px)'"
+                            onmouseout="this.style.transform='translateY(0)'">
+                            ▼ Ver más
+                        </button>
+                    </div>
+                ` : ''}
+
                 <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;
                     padding-top:12px;border-top:1px solid #e2e8f0;justify-content:center;">
                     ${leyendaHTML}
                 </div>
             </div>
         </div>`;
+}
+
+function expandirHeatmap(btn) {
+    const PAGINA = 5;
+    const tbodyId = btn.dataset.heatmap;
+    const total = parseInt(btn.dataset.total);
+    let visible = parseInt(btn.dataset.visible);
+    const containerId = tbodyId.replace('heatmap-tbody-', 'heatmap-btn-') + '-container';
+    const container = document.getElementById(containerId);
+    const tbody = document.getElementById(tbodyId);
+
+    if (!tbody || !window._heatmapFilas || !window._heatmapFilas[tbodyId]) return;
+
+    visible = Math.min(visible + PAGINA, total);
+    btn.dataset.visible = visible;
+    estadoHeatmap[tbodyId] = { visible };
+
+    // Agregar clase para animar las filas nuevas
+    tbody.classList.remove('heatmap-tbody-animado');
+    void tbody.offsetWidth; // forzar reflow para reiniciar animación
+    tbody.innerHTML = window._heatmapFilas[tbodyId].slice(0, visible).join('');
+    tbody.classList.add('heatmap-tbody-animado');
+
+    if (visible >= total) btn.style.display = 'none';
+
+    if (!container.querySelector('[data-ocultar]')) {
+        const btnOcultar = document.createElement('button');
+        btnOcultar.dataset.ocultar = 'true';
+        btnOcultar.dataset.heatmap = tbodyId;
+        btnOcultar.textContent = '▲ Ocultar';
+        btnOcultar.style.cssText = `
+            background:linear-gradient(135deg,#374151 0%,#4b5563 100%);
+            color:#e8edf3;border:none;border-radius:8px;padding:10px 28px;
+            font-family:'Orbitron',serif;font-size:13px;font-weight:600;
+            cursor:pointer;letter-spacing:0.5px;
+            box-shadow:0 4px 12px rgba(15,23,42,0.25);
+            transition:all 0.2s ease;
+        `;
+        btnOcultar.onmouseover = () => btnOcultar.style.transform = 'translateY(-2px)';
+        btnOcultar.onmouseout  = () => btnOcultar.style.transform = 'translateY(0)';
+        btnOcultar.onclick = () => {
+            // Animar salida de las filas que van a desaparecer
+            const filas = Array.from(tbody.querySelectorAll('tr'));
+            const filasAOcultar = filas.slice(PAGINA);
+
+            if (filasAOcultar.length === 0) {
+                // No hay nada que ocultar, limpiar igual
+                btn.dataset.visible = PAGINA;
+                btn.style.display = '';
+                delete estadoHeatmap[tbodyId];
+                btnOcultar.remove();
+                return;
+            }
+
+            // Aplicar animación de salida solo a las filas extras
+            filasAOcultar.forEach(fila => fila.classList.add('heatmap-ocultando'));
+
+            // Esperar que termine la animación y luego cortar el innerHTML
+            setTimeout(() => {
+                tbody.classList.remove('heatmap-tbody-animado');
+                tbody.innerHTML = window._heatmapFilas[tbodyId].slice(0, PAGINA).join('');
+
+                btn.dataset.visible = PAGINA;
+                btn.style.display = '';
+                btnOcultar.remove();
+            }, 260); // un poco más que la duración del fade-out (250ms)
+        };
+        container.appendChild(btnOcultar);
+    }
 }
 
 // ── Carga de datos ────────────────────────────────────────────────────────────

@@ -353,8 +353,7 @@ td:last-child { border-right: none; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:nth-child(odd) td  { background-color: #f0f3f6; }
 tbody tr:nth-child(even) td { background-color: var(--color-panel-brillo); }
-tr:hover td { background-color: #e9edf2 !important; }
-
+.tbl-ganadores-outer tr:hover td { background-color: #e9edf2 !important; }
 .col-pos  { width: 1%; }
 .col-tiempo { width: 25%; }
 .col-ganador { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -861,4 +860,35 @@ tr:hover td { background-color: #e9edf2 !important; }
 
 .consistencia-pos-final strong {
     color: rgb(48, 48, 48);
+}
+
+/* ── Heatmap animación ── */
+.heatmap-tbody-animado tr {
+    animation: heatmap-fade-in 0.3s ease forwards;
+}
+
+@keyframes heatmap-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.heatmap-tbody-animado tr.heatmap-ocultando {
+    animation: heatmap-fade-out 0.25s ease forwards;
+}
+
+@keyframes heatmap-fade-out {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
 }
