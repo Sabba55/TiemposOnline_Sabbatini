@@ -161,6 +161,187 @@ h1 {
     opacity: 0.4;
 }
 
+/* ── Botón de filtro de categorías ── */
+.btn-filtro-categorias {
+    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
+    color: var(--color-texto-claro);
+    border: none;
+    padding: 13px 16px;
+    cursor: pointer;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
+    margin-left: 6px;
+}
+
+.btn-filtro-categorias:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.36);
+    background: linear-gradient(135deg, var(--color-azul-principal-hover) 0%, var(--color-grafito-700) 100%);
+}
+
+.btn-filtro-categorias:active {
+    transform: translateY(0);
+}
+
+/* ── Modal de filtro ── */
+.modal-filtro-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+    animation: fadeInOverlay 0.18s ease;
+}
+
+@keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.modal-filtro-panel {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+    min-width: 300px;
+    max-width: 420px;
+    width: 100%;
+    overflow: hidden;
+    animation: slideUpPanel 0.2s ease;
+}
+
+@keyframes slideUpPanel {
+    from { transform: translateY(18px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+
+.modal-filtro-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--color-borde-suave);
+    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
+}
+
+.modal-filtro-titulo {
+    font-family: 'Orbitron', serif;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--color-texto-claro);
+}
+
+.modal-filtro-cerrar {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-texto-claro);
+    opacity: 0.75;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: 6px;
+    transition: opacity 0.2s ease;
+}
+
+.modal-filtro-cerrar:hover {
+    opacity: 1;
+}
+
+.modal-filtro-body {
+    padding: 16px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 340px;
+    overflow-y: auto;
+}
+
+.modal-filtro-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border: 1px solid var(--color-borde-suave);
+    user-select: none;
+}
+
+.modal-filtro-item:hover {
+    background: #f0f3f8;
+}
+
+.modal-filtro-item input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--color-azul-principal);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.modal-filtro-item span {
+    font-family: 'Orbitron', serif;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-texto);
+}
+
+.modal-filtro-footer {
+    padding: 14px 22px 18px;
+    border-top: 1px solid var(--color-borde-suave);
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.modal-filtro-btn-todos {
+    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
+    color: var(--color-texto-claro);
+    border: none;
+    padding: 9px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.22);
+}
+
+.modal-filtro-btn-todos:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.3);
+}
+
+.modal-filtro-btn-ninguna {
+    background: transparent;
+    color: var(--color-texto-suave);
+    border: 1px solid var(--color-borde-suave);
+    padding: 9px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modal-filtro-btn-ninguna:hover {
+    background: #f0f3f8;
+    color: var(--color-texto);
+    border-color: var(--color-borde);
+}
+
 /* ── Navegación entre PEs ── */
 .pe-nav-btn-wrapper {
     display: flex;

@@ -258,7 +258,7 @@ function renderizarResultados() {
 
     if (datosPilotos.length === 0) {
         document.getElementById('content').innerHTML =
-            '<div class="error">âš  No se encontraron datos de pilotos.</div>';
+            '<div class="error">⚠ No se encontraron datos de pilotos.</div>';
         return;
     }
 
@@ -271,6 +271,7 @@ function renderizarResultados() {
     );
 
     let htmlCompleto = '';
+    const categoriasConDatos = [];
 
     categorias.forEach(categoria => {
         const pilotosCategoria = datosPilotos
@@ -350,6 +351,8 @@ function renderizarResultados() {
 
         if (pilotosCategoria.length === 0 && pilotosGeneralCategoria.length === 0) return;
 
+        categoriasConDatos.push(categoria);
+
         const peorTiempoCategoria = obtenerPeorTiempo(pilotosCategoria);
         pilotosCategoria.forEach(piloto => {
             if (piloto.tieneDNF) {
@@ -362,8 +365,6 @@ function renderizarResultados() {
         const mejorTiempo = pilotosCategoria.length > 0 ? pilotosCategoria[0].tiempoSegundos : 0;
         const mejorTotal = pilotosGeneralCategoria.length > 0 ? pilotosGeneralCategoria[0].totalConPenalizacion : 0;
 
-        // esto va en div class="cat..." | sirve para evitar los flash en caso que falle
-        // style="${estaOculta ? 'display:none' : ''}">
         htmlCompleto += ` 
             <div class="categoria-completa mb-5" id="categoria-${categoria.replace(/\s+/g, '-').toLowerCase()}">
                 <h3 class="text-center categoria-titulo">${categoria}</h3>
@@ -504,7 +505,20 @@ function renderizarResultados() {
     });
 
     document.getElementById('content').innerHTML = htmlCompleto;
-    renderizarBotonesCategorias(categorias);
+    renderizarBotonesCategorias(categoriasConDatos);
+}
+
+// ── Botones de categoría: scroll ──────────────────────────────────────────────
+function scrollACategoria(cat) {
+    const id = `categoria-${cat.replace(/\s+/g, '-').toLowerCase()}`;
+    const div = document.getElementById(id);
+    if (!div) return;
+
+    // Si está oculta, no hacer nada
+    const ocultas = obtenerCategoriasOcultas();
+    if (ocultas.includes(cat)) return;
+
+    div.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderizarBotonesCategorias(categorias) {
@@ -513,21 +527,40 @@ function renderizarBotonesCategorias(categorias) {
 
     const ocultas = obtenerCategoriasOcultas();
 
-    nav.innerHTML = categorias
+    // Botones de scroll por categoría
+    const botonesHTML = categorias
         .map(cat => {
-            const id = `categoria-${cat.replace(/\s+/g, '-').toLowerCase()}`;
             const estaOculta = ocultas.includes(cat);
-            return `<button class="btn-categoria ${estaOculta ? 'btn-categoria--oculta' : ''}" 
-                onclick="toggleCategoria('${cat}')">${cat}</button>`;
+            return `<button 
+                class="btn-categoria ${estaOculta ? 'btn-categoria--oculta' : ''}" 
+                onclick="scrollACategoria('${cat}')"
+                title="${estaOculta ? 'Categoría oculta' : 'Ir a ' + cat}"
+            >${cat}</button>`;
         })
         .join('');
 
-    // Aplicar estado inicial
+    const btnFiltroHTML = categorias.length === 0 ? '' : `
+        <button class="btn-filtro-categorias" onclick="abrirModalFiltro()" title="Filtrar categorías">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="21" y1="6" x2="3" y2="6"/>
+                <line x1="17" y1="12" x2="7" y2="12"/>
+                <line x1="13" y1="18" x2="11" y2="18"/>
+            </svg>
+        </button>
+    `;
+
+    nav.innerHTML = botonesHTML + btnFiltroHTML;
+
+    // Aplicar visibilidad guardada
     categorias.forEach(cat => {
         if (ocultas.includes(cat)) ocultarDivCategoria(cat);
+        else mostrarDivCategoria(cat);
     });
 }
+// ─────────────────────────────────────────────────────────────────────────────
 
+// ── Persistencia de categorías ocultas ───────────────────────────────────────
 function obtenerCategoriasOcultas() {
     try {
         const guardado = JSON.parse(localStorage.getItem('tramo_categorias_ocultas') || 'null');
@@ -558,27 +591,134 @@ function ocultarDivCategoria(cat) {
     if (div) div.style.display = 'none';
 }
 
-function toggleCategoria(cat) {
+function mostrarDivCategoria(cat) {
     const id = `categoria-${cat.replace(/\s+/g, '-').toLowerCase()}`;
     const div = document.getElementById(id);
+    if (div) div.style.display = '';
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Modal de filtro de categorías ────────────────────────────────────────────
+let _categoriasModal = [];
+
+function abrirModalFiltro() {
+    // Recopilar categorías actuales del DOM
+    _categoriasModal = [...document.querySelectorAll('.categoria-completa')]
+        .map(div => {
+            const titulo = div.querySelector('.categoria-titulo');
+            return titulo ? titulo.textContent.trim() : null;
+        })
+        .filter(Boolean);
+
+    if (_categoriasModal.length === 0) return;
+
     const ocultas = obtenerCategoriasOcultas();
-    const btn = [...document.querySelectorAll('.btn-categoria')]
-        .find(b => b.textContent === cat);
 
-    const estaOculta = ocultas.includes(cat);
+    const itemsHTML = _categoriasModal.map(cat => {
+        const checked = !ocultas.includes(cat);
+        const idInput = `filtro-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`;
+        return `
+            <label class="modal-filtro-item" for="${idInput}">
+                <input 
+                    type="checkbox" 
+                    id="${idInput}" 
+                    value="${cat}" 
+                    ${checked ? 'checked' : ''}
+                    onchange="aplicarFiltroModal()"
+                >
+                <span>${cat}</span>
+            </label>
+        `;
+    }).join('');
 
-    if (estaOculta) {
-        // Mostrar
-        if (div) div.style.display = '';
-        if (btn) btn.classList.remove('btn-categoria--oculta');
-        guardarCategoriasOcultas(ocultas.filter(c => c !== cat));
-    } else {
-        // Ocultar
-        if (div) div.style.display = 'none';
-        if (btn) btn.classList.add('btn-categoria--oculta');
-        guardarCategoriasOcultas([...ocultas, cat]);
+    const modalHTML = `
+        <div class="modal-filtro-overlay" id="modalFiltroOverlay" onclick="cerrarModalFiltro(event)">
+            <div class="modal-filtro-panel" onclick="event.stopPropagation()">
+                <div class="modal-filtro-header">
+                    <span class="modal-filtro-titulo">Categorías visibles</span>
+                    <button class="modal-filtro-cerrar" onclick="cerrarModalFiltroBtn()" title="Cerrar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-filtro-body">
+                    ${itemsHTML}
+                </div>
+                <div class="modal-filtro-footer">
+                    <button class="modal-filtro-btn-ninguna" onclick="ocultarTodas()">Ocultar todas</button>
+                    <button class="modal-filtro-btn-todos" onclick="seleccionarTodas()">Mostrar todas</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+function cerrarModalFiltro(event) {
+    // Solo cerrar si se clickeó el overlay (fondo)
+    if (event.target.id === 'modalFiltroOverlay') {
+        cerrarModalFiltroBtn();
     }
 }
+
+function cerrarModalFiltroBtn() {
+    const overlay = document.getElementById('modalFiltroOverlay');
+    if (overlay) overlay.remove();
+}
+
+function aplicarFiltroModal() {
+    const checkboxes = document.querySelectorAll('#modalFiltroOverlay input[type="checkbox"]');
+    const nuevasOcultas = [];
+
+    checkboxes.forEach(cb => {
+        if (!cb.checked) {
+            nuevasOcultas.push(cb.value);
+        }
+    });
+
+    guardarCategoriasOcultas(nuevasOcultas);
+
+    // Aplicar visibilidad en tiempo real
+    _categoriasModal.forEach(cat => {
+        if (nuevasOcultas.includes(cat)) {
+            ocultarDivCategoria(cat);
+        } else {
+            mostrarDivCategoria(cat);
+        }
+    });
+
+    // Actualizar estado visual de los botones de scroll
+    actualizarEstadoBotonesCategorias(nuevasOcultas);
+}
+
+function seleccionarTodas() {
+    const checkboxes = document.querySelectorAll('#modalFiltroOverlay input[type="checkbox"]');
+    checkboxes.forEach(cb => { cb.checked = true; });
+    aplicarFiltroModal();
+}
+
+function ocultarTodas() {
+    const checkboxes = document.querySelectorAll('#modalFiltroOverlay input[type="checkbox"]');
+    checkboxes.forEach(cb => { cb.checked = false; });
+    aplicarFiltroModal();
+}
+
+function actualizarEstadoBotonesCategorias(ocultas) {
+    document.querySelectorAll('.btn-categoria').forEach(btn => {
+        const cat = btn.textContent.trim();
+        if (ocultas.includes(cat)) {
+            btn.classList.add('btn-categoria--oculta');
+            btn.title = 'Categoría oculta';
+        } else {
+            btn.classList.remove('btn-categoria--oculta');
+            btn.title = 'Ir a ' + cat;
+        }
+    });
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function actualizarUltimaActualizacion() {
     const ahora = new Date();
