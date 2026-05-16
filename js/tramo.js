@@ -204,6 +204,13 @@ function obtenerNombreTramo(tramoActual) {
     return tramoActual.Nombre || tramoActual.NOMBRE || '';
 }
 
+function esPowerStage(numeroPE) {
+    const pes = datosTramos
+        .filter(t => (t['Power Stage'] || '').trim().toLowerCase() === 'si')
+        .map(t => t.PE);
+    return pes.length === 1 && pes[0] === numeroPE;
+}
+
 function obtenerPrioridadCategoria(categoria) {
     const categoriaNormalizada = (categoria || '').trim().toUpperCase();
 
@@ -238,10 +245,11 @@ function mostrarInfoTramo() {
 
     if (tramoActual) {
         const nombreTramo = obtenerNombreTramo(tramoActual);
+        const esPS = esPowerStage(numeroPE);
 
         if (tituloElement) {
             tituloElement.innerHTML = `
-                <span class="titulo-tramo-pe">PE ${numeroPE}</span>
+                <span class="titulo-tramo-pe ${esPS ? 'titulo-tramo-pe--power-stage' : ''}">PE ${numeroPE}</span>
                 <span class="titulo-tramo-texto">| ${nombreTramo}</span>
             `;
         }

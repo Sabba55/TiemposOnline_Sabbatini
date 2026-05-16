@@ -733,6 +733,11 @@ tr:hover .pe-horario-modificado {
     margin: 0 auto;
 }
 
+.titulo-tramo-pe--power-stage {
+    background: linear-gradient(135deg, #6d28d9 0%, #4c1d95 100%);
+    box-shadow: 0 0 12px rgba(109, 40, 217, 0.4);
+}
+
 @media (max-width: 800px) {
     .modal-filtro-panel {
         min-width: unset;
