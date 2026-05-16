@@ -237,10 +237,13 @@ function renderizarMenu() {
             <tr>
                 <td>
                     <span class="pe-number ${esPS ? 'pe-power-stage' : ''}">
-                        ${pe}${esPS ? '<br><span class="ps-label"></span>' : ''}
+                        ${pe}
                     </span>
                 </td>
-                <td style="font-weight: 600;">${desdeHasta}</td>
+                <td style="font-weight: 600;">
+                    ${desdeHasta}
+                    ${esPS ? '<div><span class="badge-power-stage">Power Stage</span></div>' : ''}
+                </td>
                 <td>${kms}</td>
                 <td>${hora}</td>
                 <td>
