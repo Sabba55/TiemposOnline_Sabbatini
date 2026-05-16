@@ -163,7 +163,7 @@ h1 {
 
 /* ── Botón de filtro de categorías ── */
 .btn-filtro-categorias {
-    background: linear-gradient(135deg, var(--color-azul-principal) 0%, var(--color-grafito-800) 100%);
+    background: linear-gradient(135deg, #002453 0%, #003070 100%);
     color: var(--color-texto-claro);
     border: none;
     padding: 13px 16px;
@@ -173,14 +173,14 @@ h1 {
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
+    box-shadow: 0 8px 18px rgba(0, 36, 83, 0.35);
     margin-left: 6px;
 }
 
 .btn-filtro-categorias:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.36);
-    background: linear-gradient(135deg, var(--color-azul-principal-hover) 0%, var(--color-grafito-700) 100%);
+    box-shadow: 0 10px 24px rgba(0, 36, 83, 0.45);
+    background: linear-gradient(135deg, #003070 0%, #004090 100%);
 }
 
 .btn-filtro-categorias:active {
@@ -209,9 +209,10 @@ h1 {
     background: #fff;
     border-radius: 16px;
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
-    min-width: 300px;
-    max-width: 420px;
+    min-width: auto;
+    max-width: 40%;
     width: 100%;
+    height: auto;
     overflow: hidden;
     animation: slideUpPanel 0.2s ease;
 }
