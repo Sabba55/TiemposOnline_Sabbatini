@@ -444,3 +444,8 @@ tbody tr:hover {
     color: var(--color-texto);
     letter-spacing: 0.3px;
 }
+
+.pe-power-stage {
+    background: linear-gradient(135deg, #6d28d9 0%, #4c1d95 100%);
+    box-shadow: 0 0 10px rgba(109, 40, 217, 0.35);
+}

@@ -110,6 +110,15 @@ function obtenerHorarioMasTemplanoPE(peNumber) {
     return horarioMasTemplano;
 }
 
+function obtenerPowerStagePE() {
+    const pes = tramosData
+        .filter(t => (t['Power Stage'] || '').trim().toLowerCase() === 'si')
+        .map(t => t.PE);
+
+    if (pes.length === 1) return pes[0];
+    return null; // 0 o 2+ → se ignora
+}
+
 function validarConsistenciaDatos() {
     const numeroPEs = tramosData.length;
     
@@ -177,6 +186,8 @@ function renderizarMenu() {
         return;
     }
 
+    const powerStagePE = obtenerPowerStagePE();
+
     let html = `
         <table>
             <thead>
@@ -210,11 +221,12 @@ function renderizarMenu() {
         const kms = tramo.KMS || '';
         const hora = obtenerHorarioMasTemplanoPE(pe);
         const ganador = obtenerGanadorPE(pe);
+        const esPS = pe === powerStagePE;
         
         let ganadorHTML = '-';
         if (ganador) {
             ganadorHTML = `
-                <div style="font-weight: 600; color: #0f172a; margin-bottom: 4px;">${ganador.nombre}</div>
+                <div style="font-weight: 600; color: ${esPS ? '#4c1d95' : '#0f172a'}; margin-bottom: 4px;">${ganador.nombre}</div>
                 <div style="font-size: 12px; font-weight: 700; color: #404955;">
                     ${ganador.clase} | ${ganador.tiempo}
                 </div>
@@ -223,7 +235,11 @@ function renderizarMenu() {
 
         html += `
             <tr>
-                <td><span class="pe-number">${pe}</span></td>
+                <td>
+                    <span class="pe-number ${esPS ? 'pe-power-stage' : ''}">
+                        ${pe}${esPS ? '<br><span class="ps-label"></span>' : ''}
+                    </span>
+                </td>
                 <td style="font-weight: 600;">${desdeHasta}</td>
                 <td>${kms}</td>
                 <td>${hora}</td>
