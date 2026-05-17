@@ -5,6 +5,66 @@ let ordenLargadaData = [];
 let intervaloContador = null;
 let minutoActualTabla = null;
 
+const MAX_FIJADOS = 3;
+
+// ── Persistencia de pilotos fijados (mismo patrón que tramo.js) ───────────────
+function obtenerPilotosFijados() {
+    try {
+        const guardado = JSON.parse(localStorage.getItem('ordenLargada_fijados') || 'null');
+        if (!guardado) return [];
+
+        const ahora = Date.now();
+        const unDia = 24 * 60 * 60 * 1000;
+
+        if (ahora - guardado.timestamp > unDia) {
+            localStorage.removeItem('ordenLargada_fijados');
+            return [];
+        }
+
+        return guardado.pilotos || [];
+    } catch { return []; }
+}
+
+function guardarPilotosFijados(pilotos) {
+    localStorage.setItem('ordenLargada_fijados', JSON.stringify({
+        pilotos: pilotos,
+        timestamp: Date.now()
+    }));
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+function toggleFijarPiloto(nombrePiloto) {
+    const fijados = obtenerPilotosFijados();
+    const yaFijado = fijados.includes(nombrePiloto);
+
+    if (yaFijado) {
+        // Desfijar
+        const nuevos = fijados.filter(n => n !== nombrePiloto);
+        guardarPilotosFijados(nuevos);
+    } else {
+        // Fijar (máximo 3)
+        if (fijados.length >= MAX_FIJADOS) return;
+        guardarPilotosFijados([...fijados, nombrePiloto]);
+    }
+
+    renderizarOrdenLargada();
+}
+
+function limpiarTodosFijados() {
+    guardarPilotosFijados([]);
+    renderizarOrdenLargada();
+}
+
+// ── SVG del pin (Lucide) ──────────────────────────────────────────────────────
+function iconoPin() {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 17v5"/>
+        <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>
+    </svg>`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function cargarDatos() {
     try {
         const cacheBuster = `&t=${Date.now()}`;
@@ -205,6 +265,118 @@ function actualizarTablaSiCambioElMinuto() {
     }
 }
 
+function construirFilaPiloto(piloto, index, columnasSS, tiempoActualEnMinutos, fijados, totalFijados, esSeccionFijados) {
+    const nombre = piloto.Nombre || piloto.NOMBRE || '';
+    const categoria = piloto.Categoria || piloto.CATEGORIA || '';
+    const estaFijado = fijados.includes(nombre);
+
+    const estaLargando = columnasSS.some(ss => {
+        const tiempoLargada = convertirHorarioAMinutos(piloto[ss]);
+        return tiempoLargada !== Infinity && tiempoLargada === tiempoActualEnMinutos;
+    });
+
+    const claseLargando = estaLargando ? 'celda-largando' : '';
+    const claseFijada = estaFijado && !esSeccionFijados ? 'fila-fijada' : '';
+
+    // Estado del botón pin
+    let clasePin = '';
+    if (estaFijado) {
+        clasePin = 'fijado';
+    } else if (totalFijados >= MAX_FIJADOS) {
+        clasePin = 'deshabilitado';
+    }
+
+    const nombreEscapado = nombre.replace(/'/g, "\\'");
+
+    let html = `
+        <tr class="${claseFijada}" data-piloto="${nombre}">
+            <td class="col-pin ${claseLargando}">
+                <button
+                    class="btn-pin ${clasePin}"
+                    onclick="toggleFijarPiloto('${nombreEscapado}')"
+                    title="${estaFijado ? 'Desfijar piloto' : 'Fijar piloto'}"
+                >
+                    ${iconoPin()}
+                </button>
+            </td>
+            <td class="${claseLargando}"><span class="numero-badge">${index + 1}</span></td>
+            <td class="${claseLargando}"><strong>${nombre}</strong></td>
+            <td class="${claseLargando}"><strong>${categoria}</strong></td>
+    `;
+
+    columnasSS.forEach(ss => {
+        const horario = piloto[ss] || '-';
+        const tiempoLargada = convertirHorarioAMinutos(horario);
+        const estaLargandoEste = tiempoLargada !== Infinity && tiempoLargada === tiempoActualEnMinutos;
+        html += `<td class="pe-horario-cell${estaLargandoEste ? ' celda-largando' : ''}">${horario}</td>`;
+    });
+
+    html += '</tr>';
+    return html;
+}
+
+function renderizarSeccionFijados(datosOrdenados, columnasSS, tiempoActualEnMinutos, fijados) {
+    const container = document.getElementById('fijadosContainer');
+    if (!container) return;
+
+    if (fijados.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    const pilotosFijados = datosOrdenados.filter(p => {
+        const nombre = p.Nombre || p.NOMBRE || '';
+        return fijados.includes(nombre);
+    });
+
+    if (pilotosFijados.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+
+    let html = `
+        <div class="fijados-header">
+            <span class="fijados-titulo">Pilotos fijados</span>
+            <span class="fijados-badge">${pilotosFijados.length} / ${MAX_FIJADOS}</span>
+            <button class="fijados-limpiar" onclick="limpiarTodosFijados()">Limpiar todo</button>
+        </div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="col-pin"></th>
+                        <th>#</th>
+                        <th>Piloto</th>
+                        <th>Categoría</th>
+    `;
+
+    columnasSS.forEach(ss => {
+        html += `<th>PE ${ss.replace('SS', '')}</th>`;
+    });
+
+    html += `
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    pilotosFijados.forEach((piloto, index) => {
+        // Para la sección de fijados mostramos la posición original en la tabla completa
+        const posicionOriginal = datosOrdenados.indexOf(piloto);
+        html += construirFilaPiloto(piloto, posicionOriginal, columnasSS, tiempoActualEnMinutos, fijados, fijados.length, true);
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
 function renderizarOrdenLargada() {
     if (ordenLargadaData.length === 0) {
         document.getElementById('content').innerHTML =
@@ -223,12 +395,19 @@ function renderizarOrdenLargada() {
     const tiempoActualEnMinutos = ahora.getHours() * 60 + ahora.getMinutes();
     minutoActualTabla = tiempoActualEnMinutos;
 
+    const fijados = obtenerPilotosFijados();
+
+    // Renderizar sección de fijados (arriba)
+    renderizarSeccionFijados(datosOrdenados, columnasSS, tiempoActualEnMinutos, fijados);
+
+    // Renderizar tabla principal
     let html = `
         <div class="category-section">
             <div class="table-wrapper">
                 <table>
                     <thead>
                         <tr>
+                            <th class="col-pin"></th>
                             <th>#</th>
                             <th>Piloto</th>
                             <th>Categoría</th>
@@ -246,32 +425,7 @@ function renderizarOrdenLargada() {
     `;
 
     datosOrdenados.forEach((piloto, index) => {
-        const nombre = piloto.Nombre || piloto.NOMBRE || '';
-        const categoria = piloto.Categoria || piloto.CATEGORIA || '';
-
-        const estaLargando = columnasSS.some(ss => {
-            const tiempoLargada = convertirHorarioAMinutos(piloto[ss]);
-            return tiempoLargada !== Infinity && tiempoLargada === tiempoActualEnMinutos;
-        });
-
-        const claseLargando = estaLargando ? 'celda-largando' : '';
-
-        html += `
-            <tr>
-                <td class="${claseLargando}"><span class="numero-badge">${index + 1}</span></td>
-                <td class="${claseLargando}"><strong>${nombre}</strong></td>
-                <td class="${claseLargando}"><strong>${categoria}</strong></td>
-        `;
-
-        columnasSS.forEach(ss => {
-            const horario = piloto[ss] || '-';
-            const tiempoLargada = convertirHorarioAMinutos(horario);
-            const estaLargandoEste = tiempoLargada !== Infinity && tiempoLargada === tiempoActualEnMinutos;
-
-            html += `<td class="pe-horario-cell${estaLargandoEste ? ' celda-largando' : ''}">${horario}</td>`;
-        });
-
-        html += '</tr>';
+        html += construirFilaPiloto(piloto, index, columnasSS, tiempoActualEnMinutos, fijados, fijados.length, false);
     });
 
     html += `

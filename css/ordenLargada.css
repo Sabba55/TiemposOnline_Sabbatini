@@ -350,3 +350,112 @@ tr:hover td.celda-largando {
     border-top: 1px solid rgba(15, 23, 42, 0.1);
     margin: 8px 0;
 }
+
+/* ── Pin / Fijar piloto ─────────────────────────────────────────── */
+.col-pin {
+    width: 42px;
+    padding: 0 !important;
+    text-align: center !important;
+}
+
+.btn-pin {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #b0bac6;
+    transition: color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+    line-height: 1;
+}
+
+.btn-pin:hover {
+    color: var(--color-azul-principal);
+    background: rgba(15, 23, 42, 0.08);
+    transform: scale(1.15);
+}
+
+.btn-pin.fijado {
+    color: #1f4b8f;
+    transform: rotate(-30deg);
+}
+
+.btn-pin.fijado:hover {
+    color: var(--color-error);
+    background: rgba(166, 27, 27, 0.08);
+    transform: rotate(-30deg) scale(1.15);
+}
+
+.btn-pin.deshabilitado {
+    cursor: not-allowed;
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* ── Sección de fijados ─────────────────────────────────────────── */
+#fijadosContainer {
+    margin: 0 0 28px 0;
+    display: none;
+}
+
+.fijados-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 0 5%;
+}
+
+.fijados-titulo {
+    font-family: 'Orbitron', serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-azul-principal);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.fijados-badge {
+    background: var(--color-azul-principal);
+    color: var(--color-texto-claro);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+.fijados-limpiar {
+    margin-left: auto;
+    background: none;
+    border: 1px solid var(--color-borde-suave);
+    color: var(--color-texto-suave);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.fijados-limpiar:hover {
+    background: var(--color-error);
+    border-color: var(--color-error);
+    color: white;
+}
+
+/* Fila fijada en la tabla principal */
+tbody tr.fila-fijada td {
+    background-color: #dbeafe !important;
+}
+
+tbody tr.fila-fijada:hover td {
+    background-color: #87baf89d !important;
+}
+
+tbody tr.fila-fijada td.celda-largando {
+    background: #4f9e6a !important;
+    color: white !important;
+}
