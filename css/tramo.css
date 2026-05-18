@@ -620,6 +620,10 @@ tr:hover td {
     font-weight: 700;
 }
 
+.pos-1--power-stage td:first-child {
+    background: #7c3aed !important;
+}
+
 .error {
     background: linear-gradient(135deg, var(--color-error) 0%, #c62828 100%);
     color: white;

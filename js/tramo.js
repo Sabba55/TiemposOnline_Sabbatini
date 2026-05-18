@@ -372,6 +372,7 @@ function renderizarResultados() {
 
         const mejorTiempo = pilotosCategoria.length > 0 ? pilotosCategoria[0].tiempoSegundos : 0;
         const mejorTotal = pilotosGeneralCategoria.length > 0 ? pilotosGeneralCategoria[0].totalConPenalizacion : 0;
+        const esPSActual = esPowerStage(numeroPE);
 
         htmlCompleto += ` 
             <div class="categoria-completa mb-5" id="categoria-${categoria.replace(/\s+/g, '-').toLowerCase()}">
@@ -403,7 +404,9 @@ function renderizarResultados() {
             pilotosCategoria.forEach((piloto, indice) => {
                 const diferencia = piloto.tiempoSegundos - mejorTiempo;
                 const claseFilaDNF = piloto.tieneDNF ? 'fila-dnf' : '';
-                const claseFila = indice === 0 ? 'pos-1' : claseFilaDNF;
+                const claseFila = indice === 0
+                ? (esPSActual ? 'pos-1 pos-1--power-stage' : 'pos-1')
+                : claseFilaDNF;
                 const velocidadProm = calcularVelocidadPromedio(piloto.tiempoSegundos, distanciaTramo);
                 const tiempoMostrar = piloto.tieneDNF ? 'DNF' : piloto.tiempo;
 
