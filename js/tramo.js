@@ -622,13 +622,13 @@ function abrirModalFiltro() {
 
     if (_categoriasModal.length === 0) return;
 
-    // Si ya existe, cerrarlo (toggle)
     if (document.getElementById('drawerFiltro')) {
         cerrarModalFiltroBtn();
         return;
     }
 
     const ocultas = obtenerCategoriasOcultas();
+    const esMobile = window.screen.width < 800 || window.visualViewport?.width < 800;
 
     const itemsHTML = _categoriasModal.map(cat => {
         const activo = !ocultas.includes(cat);
@@ -641,9 +641,13 @@ function abrirModalFiltro() {
         `;
     }).join('');
 
-    const drawerHTML = `
-        <div id="drawerFiltroOverlay" onclick="cerrarModalFiltro(event)"></div>
-        <div id="drawerFiltro">
+    if (esMobile) {
+        // ── Bottom sheet con <dialog> nativo ──
+        const dialog = document.createElement('dialog');
+        dialog.id = 'drawerFiltro';
+        dialog.className = 'drawer-filtro-dialog';
+        dialog.innerHTML = `
+            <div class="drawer-filtro-handle"></div>
             <div class="drawer-filtro-header">
                 <span class="drawer-filtro-titulo">Categorías visibles</span>
                 <button class="drawer-filtro-cerrar" onclick="cerrarModalFiltroBtn()" title="Cerrar">
@@ -653,23 +657,49 @@ function abrirModalFiltro() {
                     </svg>
                 </button>
             </div>
-            <div class="drawer-filtro-body">
-                ${itemsHTML}
-            </div>
+            <div class="drawer-filtro-body">${itemsHTML}</div>
             <div class="drawer-filtro-footer">
                 <button class="drawer-filtro-btn-ninguna" onclick="ocultarTodas()">Ocultar todas</button>
                 <button class="drawer-filtro-btn-todos" onclick="seleccionarTodas()">Mostrar todas</button>
             </div>
-        </div>
-    `;
+        `;
+        document.body.appendChild(dialog);
+        dialog.showModal();
 
-    document.body.insertAdjacentHTML('beforeend', drawerHTML);
+        // Cerrar al tocar el backdrop
+        dialog.addEventListener('click', e => {
+            if (e.target === dialog) cerrarModalFiltroBtn();
+        });
 
-    // Animación de entrada
-    requestAnimationFrame(() => {
-        document.getElementById('drawerFiltro').classList.add('drawer-filtro--abierto');
-        document.getElementById('drawerFiltroOverlay').classList.add('drawer-filtro-overlay--visible');
-    });
+        requestAnimationFrame(() => dialog.classList.add('drawer-filtro--abierto'));
+
+    } else {
+        // ── Drawer lateral (desktop) — igual que antes ──
+        const drawerHTML = `
+            <div id="drawerFiltroOverlay" onclick="cerrarModalFiltro(event)"></div>
+            <div id="drawerFiltro">
+                <div class="drawer-filtro-header">
+                    <span class="drawer-filtro-titulo">Categorías visibles</span>
+                    <button class="drawer-filtro-cerrar" onclick="cerrarModalFiltroBtn()" title="Cerrar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="drawer-filtro-body">${itemsHTML}</div>
+                <div class="drawer-filtro-footer">
+                    <button class="drawer-filtro-btn-ninguna" onclick="ocultarTodas()">Ocultar todas</button>
+                    <button class="drawer-filtro-btn-todos" onclick="seleccionarTodas()">Mostrar todas</button>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', drawerHTML);
+        requestAnimationFrame(() => {
+            document.getElementById('drawerFiltro').classList.add('drawer-filtro--abierto');
+            document.getElementById('drawerFiltroOverlay').classList.add('drawer-filtro-overlay--visible');
+        });
+    }
 }
 
 function toggleDrawerItem(cat) {
@@ -700,13 +730,17 @@ function cerrarModalFiltro(event) {
 
 function cerrarModalFiltroBtn() {
     const drawer = document.getElementById('drawerFiltro');
-    const overlay = document.getElementById('drawerFiltroOverlay');
     if (!drawer) return;
 
     drawer.classList.remove('drawer-filtro--abierto');
+
+    const overlay = document.getElementById('drawerFiltroOverlay');
     overlay && overlay.classList.remove('drawer-filtro-overlay--visible');
 
     setTimeout(() => {
+        if (drawer.tagName === 'DIALOG') {
+            drawer.close();
+        }
         drawer.remove();
         overlay && overlay.remove();
     }, 280);
@@ -750,7 +784,6 @@ function actualizarEstadoBotonesCategorias(ocultas) {
         }
     });
 }
-// ─────────────────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 
 function actualizarUltimaActualizacion() {
