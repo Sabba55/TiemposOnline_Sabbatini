@@ -628,7 +628,7 @@ function abrirModalFiltro() {
     }
 
     const ocultas = obtenerCategoriasOcultas();
-    const esMobile = window.screen.width < 800 || window.visualViewport?.width < 800;
+    const esMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
     const itemsHTML = _categoriasModal.map(cat => {
         const activo = !ocultas.includes(cat);
