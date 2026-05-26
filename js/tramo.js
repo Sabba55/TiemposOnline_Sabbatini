@@ -609,10 +609,11 @@ function mostrarDivCategoria(cat) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── Drawer de filtro de categorías ───────────────────────────────────────────
+// ── Modal de filtro de categorías ────────────────────────────────────────────
 let _categoriasModal = [];
 
 function abrirModalFiltro() {
+    // Recopilar categorías actuales del DOM
     _categoriasModal = [...document.querySelectorAll('.categoria-completa')]
         .map(div => {
             const titulo = div.querySelector('.categoria-titulo');
@@ -622,154 +623,98 @@ function abrirModalFiltro() {
 
     if (_categoriasModal.length === 0) return;
 
-    if (document.getElementById('drawerFiltro')) {
-        cerrarModalFiltroBtn();
-        return;
-    }
-
     const ocultas = obtenerCategoriasOcultas();
-    const esMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
     const itemsHTML = _categoriasModal.map(cat => {
-        const activo = !ocultas.includes(cat);
+        const checked = !ocultas.includes(cat);
         const idInput = `filtro-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`;
         return `
-            <div class="drawer-filtro-item" onclick="toggleDrawerItem('${cat}')">
-                <span class="drawer-filtro-nombre">${cat}</span>
-                <div class="drawer-toggle-pill ${activo ? '' : 'off'}" id="toggle-${idInput}"></div>
-            </div>
+            <label class="modal-filtro-item" for="${idInput}">
+                <input 
+                    type="checkbox" 
+                    id="${idInput}" 
+                    value="${cat}" 
+                    ${checked ? 'checked' : ''}
+                    onchange="aplicarFiltroModal()"
+                >
+                <span>${cat}</span>
+            </label>
         `;
     }).join('');
 
-    if (esMobile) {
-        // ── Bottom sheet con <dialog> nativo ──
-        const dialog = document.createElement('dialog');
-        dialog.id = 'drawerFiltro';
-        dialog.className = 'drawer-filtro-dialog';
-        dialog.innerHTML = `
-            <div class="drawer-filtro-handle"></div>
-            <div class="drawer-filtro-header">
-                <span class="drawer-filtro-titulo">Categorías visibles</span>
-                <button class="drawer-filtro-cerrar" onclick="cerrarModalFiltroBtn()" title="Cerrar">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="drawer-filtro-body">${itemsHTML}</div>
-            <div class="drawer-filtro-footer">
-                <button class="drawer-filtro-btn-ninguna" onclick="ocultarTodas()">Ocultar todas</button>
-                <button class="drawer-filtro-btn-todos" onclick="seleccionarTodas()">Mostrar todas</button>
-            </div>
-        `;
-        document.body.appendChild(dialog);
-        dialog.showModal();
-
-        // Cerrar al tocar el backdrop
-        dialog.addEventListener('click', e => {
-            if (e.target === dialog) cerrarModalFiltroBtn();
-        });
-
-        requestAnimationFrame(() => dialog.classList.add('drawer-filtro--abierto'));
-
-    } else {
-        // ── Drawer lateral (desktop) — igual que antes ──
-        const drawerHTML = `
-            <div id="drawerFiltroOverlay" onclick="cerrarModalFiltro(event)"></div>
-            <div id="drawerFiltro">
-                <div class="drawer-filtro-header">
-                    <span class="drawer-filtro-titulo">Categorías visibles</span>
-                    <button class="drawer-filtro-cerrar" onclick="cerrarModalFiltroBtn()" title="Cerrar">
+    const modalHTML = `
+        <div class="modal-filtro-overlay" id="modalFiltroOverlay" onclick="cerrarModalFiltro(event)">
+            <div class="modal-filtro-panel" onclick="event.stopPropagation()">
+                <div class="modal-filtro-header">
+                    <span class="modal-filtro-titulo">Categorías visibles</span>
+                    <button class="modal-filtro-cerrar" onclick="cerrarModalFiltroBtn()" title="Cerrar">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
                             fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
                     </button>
                 </div>
-                <div class="drawer-filtro-body">${itemsHTML}</div>
-                <div class="drawer-filtro-footer">
-                    <button class="drawer-filtro-btn-ninguna" onclick="ocultarTodas()">Ocultar todas</button>
-                    <button class="drawer-filtro-btn-todos" onclick="seleccionarTodas()">Mostrar todas</button>
+                <div class="modal-filtro-body">
+                    ${itemsHTML}
+                </div>
+                <div class="modal-filtro-footer">
+                    <button class="modal-filtro-btn-ninguna" onclick="ocultarTodas()">Ocultar todas</button>
+                    <button class="modal-filtro-btn-todos" onclick="seleccionarTodas()">Mostrar todas</button>
                 </div>
             </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', drawerHTML);
-        requestAnimationFrame(() => {
-            document.getElementById('drawerFiltro').classList.add('drawer-filtro--abierto');
-            document.getElementById('drawerFiltroOverlay').classList.add('drawer-filtro-overlay--visible');
-        });
-    }
-}
+        </div>
+    `;
 
-function toggleDrawerItem(cat) {
-    const ocultas = obtenerCategoriasOcultas();
-    const idInput = `filtro-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`;
-    const pill = document.getElementById(`toggle-${idInput}`);
-
-    let nuevasOcultas;
-    if (ocultas.includes(cat)) {
-        nuevasOcultas = ocultas.filter(c => c !== cat);
-        if (pill) pill.classList.remove('off');
-        mostrarDivCategoria(cat);
-    } else {
-        nuevasOcultas = [...ocultas, cat];
-        if (pill) pill.classList.add('off');
-        ocultarDivCategoria(cat);
-    }
-
-    guardarCategoriasOcultas(nuevasOcultas);
-    actualizarEstadoBotonesCategorias(nuevasOcultas);
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
 function cerrarModalFiltro(event) {
-    if (event.target.id === 'drawerFiltroOverlay') {
+    // Solo cerrar si se clickeó el overlay (fondo)
+    if (event.target.id === 'modalFiltroOverlay') {
         cerrarModalFiltroBtn();
     }
 }
 
 function cerrarModalFiltroBtn() {
-    const drawer = document.getElementById('drawerFiltro');
-    if (!drawer) return;
-
-    drawer.classList.remove('drawer-filtro--abierto');
-
-    const overlay = document.getElementById('drawerFiltroOverlay');
-    overlay && overlay.classList.remove('drawer-filtro-overlay--visible');
-
-    setTimeout(() => {
-        if (drawer.tagName === 'DIALOG') {
-            drawer.close();
-        }
-        drawer.remove();
-        overlay && overlay.remove();
-    }, 280);
+    const overlay = document.getElementById('modalFiltroOverlay');
+    if (overlay) overlay.remove();
 }
 
 function aplicarFiltroModal() {
-    // Función de compatibilidad — ya no se usa directamente, pero se mantiene por si acaso
+    const checkboxes = document.querySelectorAll('#modalFiltroOverlay input[type="checkbox"]');
+    const nuevasOcultas = [];
+
+    checkboxes.forEach(cb => {
+        if (!cb.checked) {
+            nuevasOcultas.push(cb.value);
+        }
+    });
+
+    guardarCategoriasOcultas(nuevasOcultas);
+
+    // Aplicar visibilidad en tiempo real
+    _categoriasModal.forEach(cat => {
+        if (nuevasOcultas.includes(cat)) {
+            ocultarDivCategoria(cat);
+        } else {
+            mostrarDivCategoria(cat);
+        }
+    });
+
+    // Actualizar estado visual de los botones de scroll
+    actualizarEstadoBotonesCategorias(nuevasOcultas);
 }
 
 function seleccionarTodas() {
-    guardarCategoriasOcultas([]);
-    _categoriasModal.forEach(cat => {
-        const idInput = `filtro-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`;
-        const pill = document.getElementById(`toggle-${idInput}`);
-        if (pill) pill.classList.remove('off');
-        mostrarDivCategoria(cat);
-    });
-    actualizarEstadoBotonesCategorias([]);
+    const checkboxes = document.querySelectorAll('#modalFiltroOverlay input[type="checkbox"]');
+    checkboxes.forEach(cb => { cb.checked = true; });
+    aplicarFiltroModal();
 }
 
 function ocultarTodas() {
-    guardarCategoriasOcultas([..._categoriasModal]);
-    _categoriasModal.forEach(cat => {
-        const idInput = `filtro-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`;
-        const pill = document.getElementById(`toggle-${idInput}`);
-        if (pill) pill.classList.add('off');
-        ocultarDivCategoria(cat);
-    });
-    actualizarEstadoBotonesCategorias([..._categoriasModal]);
+    const checkboxes = document.querySelectorAll('#modalFiltroOverlay input[type="checkbox"]');
+    checkboxes.forEach(cb => { cb.checked = false; });
+    aplicarFiltroModal();
 }
 
 function actualizarEstadoBotonesCategorias(ocultas) {
