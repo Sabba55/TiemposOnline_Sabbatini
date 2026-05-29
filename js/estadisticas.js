@@ -3,15 +3,46 @@ const URL_TRAMOS  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5t
 
 const { analizarCSV: analizarCSVBase } = window.UtilidadesCSV;
 const { esDNF, tiempoASegundos, segundosATiempo } = window.UtilidadesTiempo;
-const { obtenerPeorTiempo, calcularTiempoDNF } = window.UtilidadesDNF;
-const { obtenerRutaLogoMarca, obtenerMarcaVehiculo } = window.UtilidadesIconos;
+const { obtenerRutaLogoMarca } = window.UtilidadesIconos;
+
+const {
+    obtenerCategoriasConTiempos,
+    calcularPosicionesAcumuladas,
+    calcularTotalInscriptos,
+    calcularInscriptos,
+    calcularDNFs,
+    calcularPorcentajeSinDNF,
+    calcularGanadoresPorTramo,
+    calcularMayorGanador,
+    calcularMarcaMasGanadora,
+    calcularVelocidadMaxima,
+    calcularTramoMasDisputado,
+    calcularPilotoMasConsistente,
+    calcularRemontadaPorTiempo,
+    calcularRemontadaPorPosicion,
+    calcularPilotoMasPosicionesPerdidas,
+    calcularEvolucionTop5,
+    calcularDatosHeatmap,
+    pilotosDeCat,
+    ultimoPEConDatos,
+} = window.UtilidadesCalculos;
+
+const {
+    getCategoriaActiva,
+    setCategoriaActiva,
+    getCategoriaGuardada,
+    getHeatmapFilas,
+    setHeatmapFilas,
+    getEstadoHeatmap,
+    setEstadoHeatmap,
+    deleteEstadoHeatmap,
+} = window.UtilidadesEstado;
 
 let datosPilotos = [];
 let datosTramos  = [];
-let categoriaActiva = null;
-let estadoHeatmap = {};
 
-// ── Parseo de CSVs ────────────────────────────────────────────────────────────
+// ── Parseo ────────────────────────────────────────────────────────────────────
+
 function analizarPilotosCSV(csv) {
     return analizarCSVBase(csv, {
         filtrarFila: fila => Boolean((fila.Nombre || fila.NOMBRE) && (fila.Categoria || fila.CATEGORIA))
@@ -24,626 +55,7 @@ function analizarTramosCSV(csv) {
     });
 }
 
-// ── Helpers de participación ──────────────────────────────────────────────────
-
-// Un piloto "participó" si tiene al menos un tiempo registrado (aunque sea DNF) en cualquier PE.
-// Si no tiene ningún dato en ningún PE, se considera no participante y no debe contar en nada.
-function pilotoParticipo(piloto) {
-    const totalPEs = datosTramos.length;
-    for (let i = 1; i <= totalPEs; i++) {
-        const tiempo = piloto[`SS${i}`];
-        if (tiempo && tiempo.trim() !== '') return true;
-    }
-    return false;
-}
-
-// Filtra los pilotos de una categoría excluyendo los no participantes
-function pilotosDeCat(categoria) {
-    return datosPilotos.filter(p =>
-        (p.Categoria || p.CATEGORIA) === categoria && pilotoParticipo(p)
-    );
-}
-
-// ── Helpers de categorías ─────────────────────────────────────────────────────
-function obtenerPrioridadCategoria(categoria) {
-    const cat = (categoria || '').trim().toUpperCase();
-    if (cat === 'RC2' || cat === 'RALLY2') return 0;
-    if (cat === 'RCMR') return 1;
-    return 2;
-}
-
-function ordenarCategorias(categorias) {
-    return [...categorias].sort((a, b) => {
-        const diff = obtenerPrioridadCategoria(a) - obtenerPrioridadCategoria(b);
-        return diff !== 0 ? diff : a.localeCompare(b, 'es');
-    });
-}
-
-// Devuelve solo las categorias que tienen al menos un tiempo cargado en cualquier PE
-function obtenerCategoriasConTiempos() {
-    const totalPEs = datosTramos.length;
-    const categoriasConTiempos = new Set();
-
-    datosPilotos.forEach(piloto => {
-        const categoria = piloto.Categoria || piloto.CATEGORIA;
-        if (!categoria) return;
-
-        for (let i = 1; i <= totalPEs; i++) {
-            const tiempo = piloto[`SS${i}`];
-            if (tiempo && tiempo.trim() !== '') {
-                categoriasConTiempos.add(categoria);
-                break;
-            }
-        }
-    });
-
-    return ordenarCategorias([...categoriasConTiempos]);
-}
-
-// ── Cálculos de estadísticas ──────────────────────────────────────────────────
-
-function calcularTotalInscriptos(categoria) {
-    return datosPilotos.filter(p => (p.Categoria || p.CATEGORIA) === categoria).length;
-}
-
-function calcularInscriptos(categoria) {
-    return pilotosDeCat(categoria).length;
-}
-
-function calcularDNFs(categoria) {
-    const totalPEs = datosTramos.length;
-    let totalDNF = 0;
-
-    pilotosDeCat(categoria)
-        .forEach(piloto => {
-            for (let i = 1; i <= totalPEs; i++) {
-                const tiempo = piloto[`SS${i}`];
-                if (tiempo && esDNF(tiempo)) {
-                    totalDNF++;
-                    break; // ya suma 1, no seguir contando sus demás tramos
-                }
-            }
-        });
-
-    return totalDNF;
-}
-
-// calcularMarcas está comentada por ahora
-// function calcularMarcas(categoria) { ... }
-
-function calcularPorcentajeSinDNF(categoria) {
-    const totalPEs = datosTramos.length;
-    const pilotos = pilotosDeCat(categoria);
-
-    if (pilotos.length === 0) return null;
-
-    let sinDNF = 0;
-    pilotos.forEach(piloto => {
-        let tuvoDNF = false;
-        for (let i = 1; i <= totalPEs; i++) {
-            const tiempo = piloto[`SS${i}`];
-            if (tiempo && esDNF(tiempo)) { tuvoDNF = true; break; }
-        }
-        if (!tuvoDNF) sinDNF++;
-    });
-
-    return {
-        porcentaje: Math.round((sinDNF / pilotos.length) * 100),
-        sinDNF,
-        total: pilotos.length
-    };
-}
-
-// Devuelve array con { pe, ganador, tiempo, velocidad } por cada PE disputado
-function calcularGanadoresPorTramo(categoria) {
-    const resultado = [];
-
-    datosTramos.forEach(tramo => {
-        const pe = tramo.PE;
-        const columna = `SS${pe}`;
-        const distancia = tramo.KMS ? parseFloat(tramo.KMS) : null;
-
-        const pilotos = pilotosDeCat(categoria)
-            .filter(p => p[columna] && p[columna].trim() !== '')
-            .map(p => {
-                const valorTiempo = p[columna];
-                const segundos = tiempoASegundos(valorTiempo);
-                return {
-                    nombre: p.Nombre || p.NOMBRE || '',
-                    tiempoSegundos: segundos,
-                    esDNF: esDNF(valorTiempo)
-                };
-            })
-            .filter(p => !p.esDNF && p.tiempoSegundos < 999999)
-            .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
-
-        if (pilotos.length === 0) return;
-
-        const ganador = pilotos[0];
-        let velocidad = '-';
-        if (distancia && !isNaN(distancia) && distancia > 0) {
-            velocidad = (distancia / (ganador.tiempoSegundos / 3600)).toFixed(0);
-        }
-
-        resultado.push({
-            pe,
-            nombre: tramo.Desde && tramo.Hasta ? `${tramo.Desde} - ${tramo.Hasta}` : `PE ${pe}`,
-            ganador: ganador.nombre,
-            tiempo: segundosATiempo(ganador.tiempoSegundos, 2),
-            velocidad
-        });
-    });
-
-    return resultado;
-}
-
-// Cuenta cuántas veces ganó cada piloto un PE en esa categoría.
-// Devuelve: { lideres: [{nombre, victorias}], todosDistintos: bool }
-function calcularMayorGanador(ganadoresPorTramo) {
-    const conteo = {};
-
-    ganadoresPorTramo.forEach(({ ganador }) => {
-        conteo[ganador] = (conteo[ganador] || 0) + 1;
-    });
-
-    const ordenados = Object.entries(conteo)
-        .sort((a, b) => b[1] - a[1]);
-
-    if (ordenados.length === 0) return null;
-
-    // Si cada piloto ganó exactamente 1 PE y hay más de 1 PE disputado → todos distintos
-    const maxVictorias = ordenados[0][1];
-    const todosDistintos = maxVictorias === 1 && ordenados.length > 1;
-
-    // Todos los que empatan en el máximo
-    const lideres = ordenados
-        .filter(([, v]) => v === maxVictorias)
-        .map(([nombre, victorias]) => ({ nombre, victorias }));
-
-    return { lideres, todosDistintos };
-}
-
-// Marca más ganadora: la marca con más victorias de tramo en la categoría
-function calcularMarcaMasGanadora(ganadoresPorTramo, categoria) {
-    const conteo = {};
-
-    ganadoresPorTramo.forEach(({ ganador }) => {
-        // Buscar el vehículo del piloto ganador
-        const piloto = pilotosDeCat(categoria).find(
-            p => (p.Nombre || p.NOMBRE) === ganador
-        );
-        if (!piloto) return;
-
-        const vehiculo = piloto.Vehiculo || piloto.VEHICULO || piloto.vehiculo || '';
-        if (!vehiculo) return;
-
-        const marca = vehiculo.trim().split(' ')[0]; // primera palabra = marca
-        if (!marca) return;
-
-        conteo[marca] = (conteo[marca] || 0) + 1;
-    });
-
-    const ordenados = Object.entries(conteo).sort((a, b) => b[1] - a[1]);
-    if (ordenados.length === 0) return null;
-
-    const maxVictorias = ordenados[0][1];
-    const marcasLideres = ordenados
-        .filter(([, v]) => v === maxVictorias)
-        .map(([marca, victorias]) => ({ marca, victorias }));
-
-    return { marcasLideres, todosDistintos: maxVictorias === 1 && ordenados.length > 1 };
-}
-
-// Velocidad promedio más alta registrada en un solo tramo para cualquier piloto de la categoría
-function calcularVelocidadMaxima(categoria) {
-    let maxVelocidad = 0;
-    let pilotoMax = '';
-    let peMax = '';
-    let kmsMax = null;
-    let tiempoMax = '';
-
-    datosTramos.forEach(tramo => {
-        const pe = tramo.PE;
-        const columna = `SS${pe}`;
-        const distancia = tramo.KMS ? parseFloat(tramo.KMS) : null;
-        if (!distancia || isNaN(distancia) || distancia <= 0) return;
-
-        pilotosDeCat(categoria)
-            .filter(p => p[columna] && !esDNF(p[columna]))
-            .forEach(piloto => {
-                const segundos = tiempoASegundos(piloto[columna]);
-                if (segundos >= 999999) return;
-
-                const velocidad = distancia / (segundos / 3600);
-                if (velocidad > maxVelocidad) {
-                    maxVelocidad = velocidad;
-                    pilotoMax = piloto.Nombre || piloto.NOMBRE || '';
-                    peMax = `PE ${pe}`;
-                    kmsMax = tramo.KMS;
-                    tiempoMax = segundosATiempo(segundos, 2);
-                }
-            });
-    });
-
-    if (maxVelocidad === 0) return null;
-
-    return {
-        velocidad: maxVelocidad.toFixed(0),
-        piloto: pilotoMax,
-        pe: peMax,
-        kms: kmsMax,
-        tiempo: tiempoMax
-    };
-}
-
-// Tramo más disputado: PE con menor diferencia entre el 1° y el 2° (tiempos de ese PE, sin acumular, sin DNF)
-function calcularTramoMasDisputado(categoria) {
-    let menorDif = Infinity;
-    let resultado = null;
-
-    datosTramos.forEach(tramo => {
-        const pe = tramo.PE;
-        const columna = `SS${pe}`;
-
-        const tiempos = pilotosDeCat(categoria)
-            .filter(p => p[columna] && p[columna].trim() !== '' && !esDNF(p[columna]))
-            .map(p => tiempoASegundos(p[columna]))
-            .filter(s => s < 999999)
-            .sort((a, b) => a - b);
-
-        if (tiempos.length < 2) return;
-
-        const dif = tiempos[1] - tiempos[0];
-        if (dif < menorDif) {
-            menorDif = dif;
-
-            // Obtener nombres del 1° y 2° en este tramo
-            const pilotosOrdenados = pilotosDeCat(categoria)
-                .filter(p => p[columna] && p[columna].trim() !== '' && !esDNF(p[columna]))
-                .map(p => ({ nombre: p.Nombre || p.NOMBRE || '', seg: tiempoASegundos(p[columna]) }))
-                .filter(p => p.seg < 999999)
-                .sort((a, b) => a.seg - b.seg);
-
-            resultado = {
-                pe,
-                kms: tramo.KMS || null,
-                nombre: tramo.Desde && tramo.Hasta ? `${tramo.Desde} - ${tramo.Hasta}` : `PE ${pe}`,
-                difSegundos: dif,
-                tiempo1: segundosATiempo(tiempos[0], 3),
-                tiempo2: segundosATiempo(tiempos[1], 3),
-                piloto1: pilotosOrdenados[0]?.nombre ?? '',
-                piloto2: pilotosOrdenados[1]?.nombre ?? ''
-            };
-        }
-    });
-
-    return resultado;
-}
-function calcularPilotoMasConsistente(categoria) {
-    // Agrupar tramos por su nombre "Desde - Hasta"
-    const gruposPorNombre = {};
-    datosTramos.forEach(tramo => {
-        const desde = (tramo.Desde || '').trim();
-        const hasta  = (tramo.Hasta  || '').trim();
-        if (!desde || !hasta) return;
-        const clave = `${desde} - ${hasta}`;
-        if (!gruposPorNombre[clave]) gruposPorNombre[clave] = [];
-        gruposPorNombre[clave].push(tramo.PE);
-    });
-
-    // Solo interesan los grupos que aparecen 2 o más veces (tramos repetidos)
-    const gruposRepetidos = Object.entries(gruposPorNombre)
-        .filter(([, pes]) => pes.length >= 2);
-
-    if (gruposRepetidos.length === 0) return null;
-
-    const candidatos = [];
-
-    pilotosDeCat(categoria).forEach(piloto => {
-        const cvsPorGrupo = [];
-        let tramosCompletados = 0;
-
-        gruposRepetidos.forEach(([, pes]) => {
-            const tiemposDelGrupo = [];
-            pes.forEach(pe => {
-                const tiempo = piloto[`SS${pe}`];
-                if (!tiempo || tiempo.trim() === '' || esDNF(tiempo)) return;
-                const seg = tiempoASegundos(tiempo);
-                if (seg < 999999) tiemposDelGrupo.push(seg);
-            });
-
-            // Solo usar este grupo si el piloto completó al menos 2 pasadas
-            if (tiemposDelGrupo.length < 2) return;
-
-            const promedio = tiemposDelGrupo.reduce((a, b) => a + b, 0) / tiemposDelGrupo.length;
-            const varianza = tiemposDelGrupo.reduce((sum, t) => sum + Math.pow(t - promedio, 2), 0) / tiemposDelGrupo.length;
-            const desvio   = Math.sqrt(varianza);
-
-            // Coeficiente de variación: desvío relativo al promedio del grupo (%)
-            // Esto hace que tramos cortos y largos pesen igual
-            const cv = promedio > 0 ? (desvio / promedio) * 100 : 0;
-
-            cvsPorGrupo.push(cv);
-            tramosCompletados += tiemposDelGrupo.length;
-        });
-
-        // El piloto necesita al menos un grupo válido para ser candidato
-        if (cvsPorGrupo.length === 0) return;
-
-        // Consistencia final = promedio de los CV de cada grupo
-        const cvPromedio = cvsPorGrupo.reduce((a, b) => a + b, 0) / cvsPorGrupo.length;
-
-        candidatos.push({
-            nombre: piloto.Nombre || piloto.NOMBRE || '',
-            cv: cvPromedio,
-            tramosCompletados
-        });
-    });
-
-    if (candidatos.length === 0) return null;
-
-    // Menor CV = más consistente
-    candidatos.sort((a, b) => a.cv - b.cv);
-    const mejor = candidatos[0];
-
-    return {
-        nombre: mejor.nombre,
-        desvio: mejor.cv.toFixed(2), // ahora es CV en %, mantenemos el campo "desvio" para no romper el render
-        tramosCompletados: mejor.tramosCompletados
-    };
-}
-
-// Remontada por TIEMPO: piloto que más tiempo recortó al líder entre su PEOR diferencia acumulada y el resultado final
-function calcularRemontadaPorTiempo(categoria) {
-    const totalPEs = datosTramos.length;
-
-    // Buscar el último PE con tiempos cargados para esta categoría
-    let ultimoPE = 0;
-    for (let i = totalPEs; i >= 1; i--) {
-        const columna = `SS${i}`;
-        const hayTiempos = pilotosDeCat(categoria).some(
-            p => p[columna] && p[columna].trim() !== ''
-        );
-        if (hayTiempos) { ultimoPE = i; break; }
-    }
-
-    if (ultimoPE < 2) return null;
-
-    // Calcula { nombre -> tiempoAcumulado } hasta un PE dado
-    function tiemposAcumuladosPorPE(hastaPE) {
-        const mapa = {};
-        pilotosDeCat(categoria).forEach(piloto => {
-            let total = 0;
-            for (let i = 1; i <= hastaPE; i++) {
-                const col = `SS${i}`;
-                const t = piloto[col];
-                if (!t || t.trim() === '') return;
-                if (esDNF(t)) {
-                    const grupo = pilotosDeCat(categoria)
-                        .filter(p => p[col])
-                        .map(p => ({ tiempoSegundos: tiempoASegundos(p[col]), tieneDNF: esDNF(p[col]) }));
-                    total += calcularTiempoDNF(obtenerPeorTiempo(grupo));
-                } else {
-                    const seg = tiempoASegundos(t);
-                    if (seg >= 999999) return;
-                    total += seg;
-                }
-            }
-            const pen = tiempoASegundos(piloto.PENALIZACION || piloto.Penalizacion || '');
-            mapa[piloto.Nombre || piloto.NOMBRE || ''] = total + (pen < 999999 ? pen : 0);
-        });
-        return mapa;
-    }
-
-    // Construir mapa de tiempos acumulados en cada PE
-    const tiemposPorPE = [];
-    for (let pe = 1; pe <= ultimoPE; pe++) {
-        tiemposPorPE.push(tiemposAcumuladosPorPE(pe));
-    }
-
-    const tiemposFinal     = tiemposPorPE[ultimoPE - 1];
-    const tiempoLiderFinal = Math.min(...Object.values(tiemposFinal));
-
-    let mejorRemontada = null;
-    let mejorRecorte   = -Infinity;
-
-    Object.entries(tiemposFinal).forEach(([nombre, tiempoFinal]) => {
-        const difFinal = tiempoFinal - tiempoLiderFinal;
-
-        // Buscar el PE donde tuvo la MAYOR diferencia al líder (peor momento)
-        let peorDif = -Infinity;
-        let peorPE  = null;
-
-        for (let pe = 1; pe < ultimoPE; pe++) {
-            const mapa = tiemposPorPE[pe - 1];
-            const propio = mapa[nombre];
-            if (propio === undefined) continue;
-            const lider = Math.min(...Object.values(mapa));
-            const dif   = propio - lider;
-            if (dif > peorDif) { peorDif = dif; peorPE = pe; }
-        }
-
-        if (peorPE === null) return;
-
-        const recorte = peorDif - difFinal;
-        if (recorte > mejorRecorte) {
-            mejorRecorte = recorte;
-            mejorRemontada = { nombre, peorDifSegundos: peorDif, difFinalSegundos: difFinal, recorteSegundos: recorte, desdePE: peorPE };
-        }
-    });
-
-    return mejorRemontada && mejorRemontada.recorteSegundos > 0 ? mejorRemontada : null;
-}
-
-// Remontada por POSICIÓN: piloto que más posiciones ganó desde su PEOR posición acumulada al resultado final
-function calcularRemontadaPorPosicion(categoria) {
-    const totalPEs = datosTramos.length;
-
-    let ultimoPE = 0;
-    for (let i = totalPEs; i >= 1; i--) {
-        const columna = `SS${i}`;
-        const hayTiempos = pilotosDeCat(categoria).some(
-            p => p[columna] && p[columna].trim() !== ''
-        );
-        if (hayTiempos) { ultimoPE = i; break; }
-    }
-
-    if (ultimoPE < 2) return null;
-
-    // Posición acumulada de cada piloto en TODOS los PEs
-    const posicionesPorPE = [];
-    for (let pe = 1; pe <= ultimoPE; pe++) {
-        posicionesPorPE.push(calcularPosicionesAcumuladas(categoria, pe));
-    }
-
-    const posicionesFinal = posicionesPorPE[ultimoPE - 1];
-
-    let mejorRemontada = null;
-    let mejorGanancia  = -Infinity;
-
-    Object.keys(posicionesFinal).forEach(nombre => {
-        const posFin = posicionesFinal[nombre];
-
-        // Buscar la peor posición (número más alto) en PEs anteriores al último
-        let peorPos = -Infinity;
-        let peorPE  = null;
-
-        for (let pe = 1; pe < ultimoPE; pe++) {
-            const pos = posicionesPorPE[pe - 1][nombre];
-            if (!pos) continue;
-            if (pos > peorPos) { peorPos = pos; peorPE = pe; }
-        }
-
-        if (peorPE === null || peorPos <= posFin) return;
-
-        const ganancia = peorPos - posFin;
-        if (ganancia > mejorGanancia) {
-            mejorGanancia = ganancia;
-            mejorRemontada = { nombre, posInicio: peorPos, posFin, ganancia, desdePE: peorPE };
-        }
-    });
-
-    return mejorRemontada;
-}
-
-// Piloto que más posiciones perdió: desde su MEJOR posición acumulada en cualquier PE hasta el resultado final
-function calcularPilotoMasPosicionesPerdidas(categoria) {
-    const totalPEs = datosTramos.length;
-
-    let ultimoPE = 0;
-    for (let i = totalPEs; i >= 1; i--) {
-        const columna = `SS${i}`;
-        const hayTiempos = pilotosDeCat(categoria).some(
-            p => p[columna] && p[columna].trim() !== ''
-        );
-        if (hayTiempos) { ultimoPE = i; break; }
-    }
-
-    if (ultimoPE < 2) return null;
-
-    const posicionesPorPE = [];
-    for (let pe = 1; pe <= ultimoPE; pe++) {
-        posicionesPorPE.push(calcularPosicionesAcumuladas(categoria, pe));
-    }
-
-    const posicionesFinal = posicionesPorPE[ultimoPE - 1];
-
-    let peorCaso = null;
-    let mayorPerdida = -Infinity;
-
-    Object.keys(posicionesFinal).forEach(nombre => {
-        const posFin = posicionesFinal[nombre];
-
-        // Buscar la MEJOR posición (número más bajo) en PEs anteriores al último
-        let mejorPos = Infinity;
-        let mejorPE  = null;
-
-        for (let pe = 1; pe < ultimoPE; pe++) {
-            const pos = posicionesPorPE[pe - 1][nombre];
-            if (!pos) continue;
-            if (pos < mejorPos) { mejorPos = pos; mejorPE = pe; }
-        }
-
-        if (mejorPE === null || mejorPos >= posFin) return;
-
-        const perdida = posFin - mejorPos;
-        if (perdida > mayorPerdida) {
-            mayorPerdida = perdida;
-            peorCaso = { nombre, posMejor: mejorPos, posFin, perdida, desdePE: mejorPE };
-        }
-    });
-
-    return peorCaso;
-}
-function calcularPosicionesPE(categoria, numeroPE) {
-    const columna = `SS${numeroPE}`;
-
-    const pilotos = pilotosDeCat(categoria)
-        .filter(p => p[columna] && p[columna].trim() !== '')
-        .map(p => {
-            const valorTiempo = p[columna];
-            const tieneDNF = esDNF(valorTiempo);
-            let segundos = tiempoASegundos(valorTiempo);
-
-            return {
-                nombre: p.Nombre || p.NOMBRE || '',
-                tiempoSegundos: segundos,
-                tieneDNF
-            };
-        });
-
-    const peorTiempo = obtenerPeorTiempo(pilotos);
-    pilotos.forEach(p => {
-        if (p.tieneDNF) p.tiempoSegundos = calcularTiempoDNF(peorTiempo);
-    });
-    pilotos.sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
-
-    const posiciones = {};
-    pilotos.forEach((p, i) => { posiciones[p.nombre] = i + 1; });
-    return posiciones;
-}
-
-// Posiciones acumuladas hasta un PE determinado
-function calcularPosicionesAcumuladas(categoria, hastaPE) {
-    const pilotos = pilotosDeCat(categoria)
-        .map(piloto => {
-            let totalSegundos = 0;
-
-            for (let i = 1; i <= hastaPE; i++) {
-                const columna = `SS${i}`;
-                const tiempo = piloto[columna];
-                if (!tiempo || tiempo.trim() === '') return null;
-
-                if (esDNF(tiempo)) {
-                    const pilotosTramo = pilotosDeCat(categoria)
-                        .filter(p => p[columna])
-                        .map(p => ({ tiempoSegundos: tiempoASegundos(p[columna]), tieneDNF: esDNF(p[columna]) }));
-                    const peor = obtenerPeorTiempo(pilotosTramo);
-                    totalSegundos += calcularTiempoDNF(peor);
-                } else {
-                    const seg = tiempoASegundos(tiempo);
-                    if (seg >= 999999) return null;
-                    totalSegundos += seg;
-                }
-            }
-
-            const penalizacion = tiempoASegundos(piloto.PENALIZACION || piloto.Penalizacion || '');
-            const penSeg = penalizacion < 999999 ? penalizacion : 0;
-
-            return {
-                nombre: piloto.Nombre || piloto.NOMBRE || '',
-                total: totalSegundos + penSeg
-            };
-        })
-        .filter(p => p !== null)
-        .sort((a, b) => a.total - b.total);
-
-    const posiciones = {};
-    pilotos.forEach((p, i) => { posiciones[p.nombre] = i + 1; });
-    return posiciones;
-}
-
-// ── Render ────────────────────────────────────────────────────────────────────
+// ── Botones de categoría ──────────────────────────────────────────────────────
 
 function renderizarBotonesCategorias(categorias) {
     const nav = document.getElementById('categoriasNav');
@@ -651,7 +63,7 @@ function renderizarBotonesCategorias(categorias) {
 
     nav.innerHTML = categorias
         .map(cat => {
-            const esActiva = cat === categoriaActiva;
+            const esActiva = cat === getCategoriaActiva();
             return `<button
                 class="btn-categoria${esActiva ? ' activo' : ''}"
                 onclick="seleccionarCategoria('${cat}')"
@@ -661,10 +73,8 @@ function renderizarBotonesCategorias(categorias) {
 }
 
 function seleccionarCategoria(categoria) {
-    categoriaActiva = categoria;
-    sessionStorage.setItem('categoriaActiva', categoria);
+    setCategoriaActiva(categoria);
 
-    // Actualizar estado visual de botones
     document.querySelectorAll('.btn-categoria').forEach(btn => {
         btn.classList.toggle('activo', btn.textContent === categoria);
     });
@@ -672,49 +82,55 @@ function seleccionarCategoria(categoria) {
     renderizarEstadisticasCategoria(categoria);
 }
 
+// ── Render principal ──────────────────────────────────────────────────────────
+
 function renderizarEstadisticasCategoria(categoria) {
     const contenedor = document.getElementById('content');
 
-    // ── Datos ──
-    const totalInscriptos  = calcularTotalInscriptos(categoria);
-    const largaron         = calcularInscriptos(categoria);
-    const dnfs             = calcularDNFs(categoria);
-    const porcentajeSinDNF = calcularPorcentajeSinDNF(categoria);
-    // const marcas        = calcularMarcas(categoria); // comentado por ahora
-    const ganadoresPE      = calcularGanadoresPorTramo(categoria);
+    const ganadoresPE      = calcularGanadoresPorTramo(categoria, datosPilotos, datosTramos);
     const mayorGanador     = calcularMayorGanador(ganadoresPE);
-    const marcaMasGanadora = calcularMarcaMasGanadora(ganadoresPE, categoria);
-    const velocidadMax     = calcularVelocidadMaxima(categoria);
-    const consistente      = calcularPilotoMasConsistente(categoria);
-    const remontadaTiempo  = calcularRemontadaPorTiempo(categoria);
-    const remontadaPos     = calcularRemontadaPorPosicion(categoria);
-    const tramoDisputado   = calcularTramoMasDisputado(categoria);
-    const posicionesPerdidas = calcularPilotoMasPosicionesPerdidas(categoria);
+    const marcaMasGanadora = calcularMarcaMasGanadora(ganadoresPE, categoria, datosPilotos, datosTramos);
+    const porcentajeSinDNF = calcularPorcentajeSinDNF(categoria, datosPilotos, datosTramos);
+    const velocidadMax     = calcularVelocidadMaxima(categoria, datosPilotos, datosTramos);
+    const consistente      = calcularPilotoMasConsistente(categoria, datosPilotos, datosTramos);
+    const remontadaTiempo  = calcularRemontadaPorTiempo(categoria, datosPilotos, datosTramos);
+    const remontadaPos     = calcularRemontadaPorPosicion(categoria, datosPilotos, datosTramos);
+    const tramoDisputado   = calcularTramoMasDisputado(categoria, datosPilotos, datosTramos);
+    const posicionesPerdidas = calcularPilotoMasPosicionesPerdidas(categoria, datosPilotos, datosTramos);
 
-    // ── HTML: tarjeta porcentaje sin DNF ──
-    const colorPorcentaje = !porcentajeSinDNF      ? '#16a34a'
-        : porcentajeSinDNF.porcentaje < 30          ? '#dc2626'   // rojo
-        : porcentajeSinDNF.porcentaje <= 70          ? '#ea580c'   // naranja
-        :                                              '#16a34a';  // verde
+    contenedor.innerHTML = [
+        renderizarResumen(categoria, porcentajeSinDNF),
+        renderizarGanadores(categoria, ganadoresPE, mayorGanador, marcaMasGanadora),
+        renderizarEvolucionTop5(categoria),
+        renderizarHeatmapRendimiento(categoria),
+        renderizarFilaInferior(velocidadMax, consistente, categoria, tramoDisputado, remontadaTiempo, remontadaPos, posicionesPerdidas),
+    ].join('');
+}
+
+// ── Render: resumen ───────────────────────────────────────────────────────────
+
+function renderizarResumen(categoria, porcentajeSinDNF) {
+    const totalInscriptos = calcularTotalInscriptos(categoria, datosPilotos);
+    const largaron        = calcularInscriptos(categoria, datosPilotos, datosTramos);
+    const dnfs            = calcularDNFs(categoria, datosPilotos, datosTramos);
+
+    const colorPorcentaje = !porcentajeSinDNF          ? '#16a34a'
+        : porcentajeSinDNF.porcentaje < 30              ? '#dc2626'
+        : porcentajeSinDNF.porcentaje <= 70              ? '#ea580c'
+        :                                                  '#16a34a';
+
     const htmlPorcentaje = porcentajeSinDNF
-        ? `
-            <div class="tarjeta-resumen tarjeta-sin-dnf">
-                <div class="seccion-titulo">Finalizaron sin DNF</div>
-                <div class="tarjeta-valor" style="color: ${colorPorcentaje};">${porcentajeSinDNF.porcentaje}%</div>
-                <div class="tarjeta-label">${porcentajeSinDNF.sinDNF} de ${porcentajeSinDNF.total} vehículos completaron todos los PE</div>
-            </div>
-        `
-        : `
-            <div class="tarjeta-resumen">
-                <div class="seccion-titulo">Finalizaron sin DNF</div>
-                <div class="no-data">Sin información</div>
-            </div>
-        `;
+        ? `<div class="tarjeta-resumen tarjeta-sin-dnf">
+               <div class="seccion-titulo">Finalizaron sin DNF</div>
+               <div class="tarjeta-valor" style="color:${colorPorcentaje};">${porcentajeSinDNF.porcentaje}%</div>
+               <div class="tarjeta-label">${porcentajeSinDNF.sinDNF} de ${porcentajeSinDNF.total} vehículos completaron todos los PE</div>
+           </div>`
+        : `<div class="tarjeta-resumen">
+               <div class="seccion-titulo">Finalizaron sin DNF</div>
+               <div class="no-data">Sin información</div>
+           </div>`;
 
-    // Tarjeta Marcas: comentada por ahora
-    // const htmlMarcas = ...
-
-    const htmlResumen = `
+    return `
         <div class="resumen-grid">
             <div class="tarjeta-resumen">
                 <div class="seccion-titulo">Inscriptos</div>
@@ -732,105 +148,45 @@ function renderizarEstadisticasCategoria(categoria) {
                 <div class="tarjeta-label">abandonos registrados</div>
             </div>
             ${htmlPorcentaje}
-        </div>
-    `;
+        </div>`;
+}
 
-    // ── HTML: ganadores por tramo + tarjetas derechas ──
-    let htmlFilasGanadores = '';
+// ── Render: ganadores por tramo ───────────────────────────────────────────────
+
+function renderizarGanadores(categoria, ganadoresPE, mayorGanador, marcaMasGanadora) {
+    let htmlFilas = '';
+
     if (ganadoresPE.length === 0) {
-        htmlFilasGanadores = `<tr><td colspan="3" class="no-data">Sin tiempos registrados</td></tr>`;
+        htmlFilas = `<tr><td colspan="4" class="no-data">Sin tiempos registrados</td></tr>`;
     } else {
         ganadoresPE.forEach(({ pe, ganador, tiempo }) => {
-            const pilotoData = pilotosDeCat(categoria).find(
-                p => (p.Nombre || p.NOMBRE) === ganador
-            );
+            const pilotoData = pilotosDeCat(categoria, datosPilotos, datosTramos)
+                .find(p => (p.Nombre || p.NOMBRE) === ganador);
             const vehiculo = pilotoData
                 ? (pilotoData.Vehiculo || pilotoData.VEHICULO || pilotoData.vehiculo || '—')
                 : '—';
             const rutaLogo = obtenerRutaLogoMarca(vehiculo);
             const marca = vehiculo.trim().split(' ')[0];
 
-            htmlFilasGanadores += `
+            htmlFilas += `
                 <tr>
                     <td class="col-pos"><div class="pe-cell"><span class="pe-badge">PE ${pe}</span></div></td>
                     <td class="col-ganador"><div class="piloto-cell">${ganador}</div></td>
                     <td class="col-vehicle">
-                        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;justify-content: center;">
-                            ${rutaLogo
-                                ? `<img src="${rutaLogo}" alt="${marca}" style="height:18px;object-fit:contain;"
-                                    onerror="this.style.display='none'">`
-                                : ''}
+                        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;justify-content:center;">
+                            ${rutaLogo ? `<img src="${rutaLogo}" alt="${marca}" style="height:18px;object-fit:contain;" onerror="this.style.display='none'">` : ''}
                             <span style="font-size:13px;font-weight:600;color:var(--color-texto);">${vehiculo}</span>
                         </div>
                     </td>
                     <td class="col-tiempo tiempo-cell"><span class="tiempo-val">${tiempo}</span></td>
-                </tr>
-            `;
+                </tr>`;
         });
     }
 
-    // Tarjeta mayor ganador (con empates y caso todos-distintos)
-    let htmlMayorGanador = '';
-    if (mayorGanador) {
-        if (mayorGanador.todosDistintos) {
-            htmlMayorGanador = `
-                <div class="tarjeta-mayor-ganador">
-                    <div class="mayor-ganador-label">Mayor ganador de tramos</div>
-                    <div class="mayor-ganador-todos-distintos">Cada tramo fue ganado por un piloto diferente</div>
-                </div>
-            `;
-        } else {
-            const nombresHTML = mayorGanador.lideres
-                .map(l => `<div class="mayor-ganador-nombre">${l.nombre}</div>`)
-                .join('');
-            const etiqueta = mayorGanador.lideres.length > 1 ? 'Mayor ganadores de tramos' : 'Mayor ganador de tramos';
-            htmlMayorGanador = `
-                <div class="tarjeta-mayor-ganador">
-                    <div class="mayor-ganador-label">${etiqueta}</div>
-                    ${nombresHTML}
-                    <div class="mayor-ganador-victorias">${mayorGanador.lideres[0].victorias}</div>
-                    <div class="mayor-ganador-victorias-label">victoria${mayorGanador.lideres[0].victorias !== 1 ? 's' : ''}</div>
-                </div>
-            `;
-        }
-    }
+    const htmlMayorGanador = _renderTarjetaMayorGanador(mayorGanador);
+    const htmlMarcaMasGanadora = _renderTarjetaMarcaGanadora(marcaMasGanadora);
 
-    // Tarjeta marca más ganadora
-    let htmlMarcaMasGanadora = '';
-    if (marcaMasGanadora) {
-        const { obtenerRutaLogoMarca } = window.UtilidadesIconos;
-        if (marcaMasGanadora.todosDistintos) {
-            htmlMarcaMasGanadora = `
-                <div class="tarjeta-mayor-ganador tarjeta-marca-ganadora">
-                    <div class="mayor-ganador-label">Marca más ganadora de tramos</div>
-                    <div class="mayor-ganador-todos-distintos">Cada tramo fue ganado por una marca diferente</div>
-                </div>
-            `;
-        } else {
-            const marcasHTML = marcaMasGanadora.marcasLideres.map(({ marca }) => {
-                const logo = obtenerRutaLogoMarca(marca + ' x');
-                const esToyota = marca.trim().toLowerCase() === 'toyota';
-                const logoStyle = esToyota ? 'style="filter: brightness(0) invert(1);"' : '';
-                return `
-                    <div class="marca-ganadora-fila">
-                        ${logo ? `<img src="${logo}" alt="${marca}" class="marca-ganadora-logo" ${logoStyle} onerror="this.style.display='none'">` : ''}
-                        <span class="mayor-ganador-nombre" style="margin:0;">${marca}</span>
-                    </div>
-                `;
-            }).join('');
-            const etiquetaMarca = marcaMasGanadora.marcasLideres.length > 1 ? 'Marcas más ganadoras' : 'Marca más ganadora de tramos';
-            htmlMarcaMasGanadora = `
-                <div class="tarjeta-mayor-ganador tarjeta-marca-ganadora">
-                    <div class="mayor-ganador-label">${etiquetaMarca}</div>
-                    ${marcasHTML}
-                    <div class="mayor-ganador-victorias">${marcaMasGanadora.marcasLideres[0].victorias}</div>
-                    <div class="mayor-ganador-victorias-label">victoria${marcaMasGanadora.marcasLideres[0].victorias !== 1 ? 's' : ''}</div>
-                </div>
-            `;
-        }
-    }
-
-    const htmlGanadores = `
+    return `
         <div class="ganadores-layout">
             <div>
                 <div class="seccion-titulo">Ganadores por tramo</div>
@@ -844,7 +200,7 @@ function renderizarEstadisticasCategoria(categoria) {
                                 <th class="center">Tiempo</th>
                             </tr>
                         </thead>
-                        <tbody>${htmlFilasGanadores}</tbody>
+                        <tbody>${htmlFilas}</tbody>
                     </table>
                 </div>
             </div>
@@ -852,302 +208,294 @@ function renderizarEstadisticasCategoria(categoria) {
                 ${htmlMayorGanador}
                 ${htmlMarcaMasGanadora}
             </div>
-        </div>
-    `;
+        </div>`;
+}
 
-    // ── HTML: velocidad máxima ──
-    const htmlVelocidad = velocidadMax
-        ? `
-            <div class="tarjeta-velocidad">
-                <div class="seccion-titulo">Velocidad promedio más alta</div>
-                <div class="velocidad-piloto">${velocidadMax.piloto}</div>
-                <div class="velocidad-numero-row">
-                    <span class="velocidad-numero">${velocidadMax.velocidad}</span>
-                    <span class="velocidad-unidad">km/h</span>
-                </div>
-                <div class="velocidad-detalle">
-                    <span> Tiempo: ${velocidadMax.tiempo} | ${velocidadMax.pe}${velocidadMax.kms ? `  ${velocidadMax.kms} km` : ''}</span>
-                </div>
-            </div>
-        `
-        : `
+function _renderTarjetaMayorGanador(mayorGanador) {
+    if (!mayorGanador) return '';
+
+    if (mayorGanador.todosDistintos) {
+        return `
+            <div class="tarjeta-mayor-ganador">
+                <div class="mayor-ganador-label">Mayor ganador de tramos</div>
+                <div class="mayor-ganador-todos-distintos">Cada tramo fue ganado por un piloto diferente</div>
+            </div>`;
+    }
+
+    const etiqueta = mayorGanador.lideres.length > 1 ? 'Mayor ganadores de tramos' : 'Mayor ganador de tramos';
+    const nombresHTML = mayorGanador.lideres.map(l => `<div class="mayor-ganador-nombre">${l.nombre}</div>`).join('');
+
+    return `
+        <div class="tarjeta-mayor-ganador">
+            <div class="mayor-ganador-label">${etiqueta}</div>
+            ${nombresHTML}
+            <div class="mayor-ganador-victorias">${mayorGanador.lideres[0].victorias}</div>
+            <div class="mayor-ganador-victorias-label">victoria${mayorGanador.lideres[0].victorias !== 1 ? 's' : ''}</div>
+        </div>`;
+}
+
+function _renderTarjetaMarcaGanadora(marcaMasGanadora) {
+    if (!marcaMasGanadora) return '';
+
+    if (marcaMasGanadora.todosDistintos) {
+        return `
+            <div class="tarjeta-mayor-ganador tarjeta-marca-ganadora">
+                <div class="mayor-ganador-label">Marca más ganadora de tramos</div>
+                <div class="mayor-ganador-todos-distintos">Cada tramo fue ganado por una marca diferente</div>
+            </div>`;
+    }
+
+    const marcasHTML = marcaMasGanadora.marcasLideres.map(({ marca }) => {
+        const logo = obtenerRutaLogoMarca(marca + ' x');
+        const esToyota = marca.trim().toLowerCase() === 'toyota';
+        const logoStyle = esToyota ? 'style="filter:brightness(0) invert(1);"' : '';
+        return `
+            <div class="marca-ganadora-fila">
+                ${logo ? `<img src="${logo}" alt="${marca}" class="marca-ganadora-logo" ${logoStyle} onerror="this.style.display='none'">` : ''}
+                <span class="mayor-ganador-nombre" style="margin:0;">${marca}</span>
+            </div>`;
+    }).join('');
+
+    const etiqueta = marcaMasGanadora.marcasLideres.length > 1 ? 'Marcas más ganadoras' : 'Marca más ganadora de tramos';
+
+    return `
+        <div class="tarjeta-mayor-ganador tarjeta-marca-ganadora">
+            <div class="mayor-ganador-label">${etiqueta}</div>
+            ${marcasHTML}
+            <div class="mayor-ganador-victorias">${marcaMasGanadora.marcasLideres[0].victorias}</div>
+            <div class="mayor-ganador-victorias-label">victoria${marcaMasGanadora.marcasLideres[0].victorias !== 1 ? 's' : ''}</div>
+        </div>`;
+}
+
+// ── Render: fila inferior ─────────────────────────────────────────────────────
+
+function renderizarFilaInferior(velocidadMax, consistente, categoria, tramoDisputado, remontadaTiempo, remontadaPos, posicionesPerdidas) {
+    return `
+        <div class="fila-inferior">
+            ${_renderVelocidad(velocidadMax)}
+            ${_renderConsistente(consistente, categoria)}
+            ${_renderTramoDisputado(tramoDisputado)}
+            ${_renderRemontadaTiempo(remontadaTiempo)}
+            ${_renderRemontadaPos(remontadaPos)}
+            ${_renderPosicionesPerdidas(posicionesPerdidas)}
+        </div>`;
+}
+
+function _renderVelocidad(velocidadMax) {
+    if (!velocidadMax) {
+        return `
             <div class="tarjeta-velocidad">
                 <div class="seccion-titulo">Velocidad promedio más alta</div>
                 <div class="no-data">Sin datos de distancia</div>
+            </div>`;
+    }
+    return `
+        <div class="tarjeta-velocidad">
+            <div class="seccion-titulo">Velocidad promedio más alta</div>
+            <div class="velocidad-piloto">${velocidadMax.piloto}</div>
+            <div class="velocidad-numero-row">
+                <span class="velocidad-numero">${velocidadMax.velocidad}</span>
+                <span class="velocidad-unidad">km/h</span>
             </div>
-        `;
+            <div class="velocidad-detalle">
+                <span>Tiempo: ${velocidadMax.tiempo} | ${velocidadMax.pe}${velocidadMax.kms ? `  ${velocidadMax.kms} km` : ''}</span>
+            </div>
+        </div>`;
+}
 
-    // ── HTML: piloto más consistente ──
-    const htmlConsistente = consistente
-        ? (() => {
-            const totalPEsConsistente = datosTramos.length;
-            let ultimoPEConsistente = 0;
-            for (let i = totalPEsConsistente; i >= 1; i--) {
-                if (pilotosDeCat(categoria).some(p => p[`SS${i}`] && p[`SS${i}`].trim() !== '')) {
-                    ultimoPEConsistente = i; break;
-                }
-            }
-            const posFinConsistente = ultimoPEConsistente > 0
-                ? calcularPosicionesAcumuladas(categoria, ultimoPEConsistente)[consistente.nombre] ?? null
-                : null;
-
-            return `
-                <div class="tarjeta-consistencia">
-                    <div class="seccion-titulo">Piloto más consistente</div>
-                    <div class="consistencia-piloto">${consistente.nombre}</div>
-                    ${posFinConsistente !== null
-                        ? `<div class="consistencia-pos-final">Finalizó <strong>${posFinConsistente}°</strong></div>`
-                        : ''}
-                    <div class="consistencia-desvio">${consistente.desvio}%</div>
-                    <div class="consistencia-desvio-label">variación promedio</div>
-                    <div class="consistencia-explicacion">
-                        Menor variación porcentual de tiempos entre tramos repetidos.
-                        Cuanto más bajo, más regular es el piloto.
-                    </div>
-                </div>
-            `;
-        })()
-        : `
+function _renderConsistente(consistente, categoria) {
+    if (!consistente) {
+        return `
             <div class="tarjeta-consistencia">
                 <div class="seccion-titulo">Piloto más consistente</div>
                 <div class="no-data">Sin información</div>
-            </div>
-    `;
+            </div>`;
+    }
 
-    // ── HTML: mejor remontada por TIEMPO recortado al líder ──
-    const fmtDif = seg => {
-        const total = Math.abs(seg);
-        const m  = Math.floor(total / 60);
-        const s  = Math.floor(total % 60);
-        const dec = Math.round((total % 1) * 10); // una décima
-        const sStr = dec > 0 ? `${s}.${dec}s` : `${s}s`;
-        return m > 0 ? `${m}m ${sStr}` : sStr;
-    };
-    const fmtDifFinal = seg => {
-        if (seg <= 0) return '<span style="color:#16a34a; font-weight:800;">Líder</span>';
-        return `+${fmtDif(seg)}`;
-    };
-    const htmlRemontadaTiempo = remontadaTiempo
-        ? `
-            <div class="tarjeta-remontada">
-                <div class="seccion-titulo">Mejor remontada (tiempo)</div>
-                <div class="remontada-piloto">${remontadaTiempo.nombre}</div>
-                <span class="remontada-badge">−${fmtDif(remontadaTiempo.recorteSegundos)} al líder</span>
-                <div class="remontada-posiciones">
-                    <div class="remontada-pos-inicio">
-                        <div class="remontada-pos-numero" style="font-size:20px;">+${fmtDif(remontadaTiempo.peorDifSegundos)}</div>
-                        <div class="remontada-pos-label">tras PE ${remontadaTiempo.desdePE}</div>
-                    </div>
-                    <div class="remontada-flecha">→</div>
-                    <div class="remontada-pos-fin">
-                        <div class="remontada-pos-numero" style="font-size:20px;">${fmtDifFinal(remontadaTiempo.difFinalSegundos)}</div>
-                        <div class="remontada-pos-label">Actual</div>
-                    </div>
-                </div>
-                <div class="remontada-ganancia">
-                    Recortó <strong>${fmtDif(remontadaTiempo.recorteSegundos)}</strong> al líder desde su peor momento (tras PE ${remontadaTiempo.desdePE})
-                </div>
+    const ultimoPE = ultimoPEConDatos(categoria, datosPilotos, datosTramos);
+    const posFin = ultimoPE > 0
+        ? calcularPosicionesAcumuladas(categoria, ultimoPE, datosPilotos, datosTramos)[consistente.nombre] ?? null
+        : null;
+
+    return `
+        <div class="tarjeta-consistencia">
+            <div class="seccion-titulo">Piloto más consistente</div>
+            <div class="consistencia-piloto">${consistente.nombre}</div>
+            ${posFin !== null ? `<div class="consistencia-pos-final">Finalizó <strong>${posFin}°</strong></div>` : ''}
+            <div class="consistencia-desvio">${consistente.desvio}%</div>
+            <div class="consistencia-desvio-label">variación promedio</div>
+            <div class="consistencia-explicacion">
+                Menor variación porcentual de tiempos entre tramos repetidos.
+                Cuanto más bajo, más regular es el piloto.
             </div>
-        `
-        : `
+        </div>`;
+}
+
+function _fmtDif(seg) {
+    const total = Math.abs(seg);
+    const m  = Math.floor(total / 60);
+    const s  = Math.floor(total % 60);
+    const dec = Math.round((total % 1) * 10);
+    const sStr = dec > 0 ? `${s}.${dec}s` : `${s}s`;
+    return m > 0 ? `${m}m ${sStr}` : sStr;
+}
+
+function _fmtDifFinal(seg) {
+    if (seg <= 0) return '<span style="color:#16a34a;font-weight:800;">Líder</span>';
+    return `+${_fmtDif(seg)}`;
+}
+
+function _renderRemontadaTiempo(remontadaTiempo) {
+    if (!remontadaTiempo) {
+        return `
             <div class="tarjeta-remontada">
                 <div class="seccion-titulo">Mejor remontada (tiempo)</div>
                 <div class="no-data">Sin información</div>
+            </div>`;
+    }
+    return `
+        <div class="tarjeta-remontada">
+            <div class="seccion-titulo">Mejor remontada (tiempo)</div>
+            <div class="remontada-piloto">${remontadaTiempo.nombre}</div>
+            <span class="remontada-badge">−${_fmtDif(remontadaTiempo.recorteSegundos)} al líder</span>
+            <div class="remontada-posiciones">
+                <div class="remontada-pos-inicio">
+                    <div class="remontada-pos-numero" style="font-size:20px;">+${_fmtDif(remontadaTiempo.peorDifSegundos)}</div>
+                    <div class="remontada-pos-label">tras PE ${remontadaTiempo.desdePE}</div>
+                </div>
+                <div class="remontada-flecha">→</div>
+                <div class="remontada-pos-fin">
+                    <div class="remontada-pos-numero" style="font-size:20px;">${_fmtDifFinal(remontadaTiempo.difFinalSegundos)}</div>
+                    <div class="remontada-pos-label">Actual</div>
+                </div>
             </div>
-        `;
+            <div class="remontada-ganancia">
+                Recortó <strong>${_fmtDif(remontadaTiempo.recorteSegundos)}</strong> al líder desde su peor momento (tras PE ${remontadaTiempo.desdePE})
+            </div>
+        </div>`;
+}
 
-    // ── HTML: mejor remontada por POSICIÓN ──
-    const htmlRemontadaPos = remontadaPos && remontadaPos.ganancia > 0
-        ? `
-            <div class="tarjeta-remontada">
-                <div class="seccion-titulo">Mejor remontada (posición)</div>
-                <div class="remontada-piloto">${remontadaPos.nombre}</div>
-                <span class="remontada-badge">+${remontadaPos.ganancia} posicion${remontadaPos.ganancia !== 1 ? 'es' : ''}</span>
-                <div class="remontada-posiciones">
-                    <div class="remontada-pos-inicio">
-                        <div class="remontada-pos-numero">${remontadaPos.posInicio}°</div>
-                        <div class="remontada-pos-label">tras PE ${remontadaPos.desdePE}</div>
-                    </div>
-                    <div class="remontada-flecha">→</div>
-                    <div class="remontada-pos-fin">
-                        <div class="remontada-pos-numero">${remontadaPos.posFin}°</div>
-                        <div class="remontada-pos-label">Actual</div>
-                    </div>
-                </div>
-                <div class="remontada-ganancia">
-                    Ganó <strong>${remontadaPos.ganancia}</strong> lugar${remontadaPos.ganancia !== 1 ? 'es' : ''} desde su peor posición (tras PE ${remontadaPos.desdePE})
-                </div>
-            </div>
-        `
-        : `
+function _renderRemontadaPos(remontadaPos) {
+    if (!remontadaPos || remontadaPos.ganancia <= 0) {
+        return `
             <div class="tarjeta-remontada">
                 <div class="seccion-titulo">Mejor remontada (posición)</div>
                 <div class="no-data">Sin información</div>
+            </div>`;
+    }
+    const g = remontadaPos.ganancia;
+    return `
+        <div class="tarjeta-remontada">
+            <div class="seccion-titulo">Mejor remontada (posición)</div>
+            <div class="remontada-piloto">${remontadaPos.nombre}</div>
+            <span class="remontada-badge">+${g} posicion${g !== 1 ? 'es' : ''}</span>
+            <div class="remontada-posiciones">
+                <div class="remontada-pos-inicio">
+                    <div class="remontada-pos-numero">${remontadaPos.posInicio}°</div>
+                    <div class="remontada-pos-label">tras PE ${remontadaPos.desdePE}</div>
+                </div>
+                <div class="remontada-flecha">→</div>
+                <div class="remontada-pos-fin">
+                    <div class="remontada-pos-numero">${remontadaPos.posFin}°</div>
+                    <div class="remontada-pos-label">Actual</div>
+                </div>
             </div>
-        `;
+            <div class="remontada-ganancia">
+                Ganó <strong>${g}</strong> lugar${g !== 1 ? 'es' : ''} desde su peor posición (tras PE ${remontadaPos.desdePE})
+            </div>
+        </div>`;
+}
 
-    // ── HTML: tramo más disputado ──
+function _renderTramoDisputado(tramoDisputado) {
     const fmtDifDisputado = seg => {
         const total = Math.abs(seg);
         const m   = Math.floor(total / 60);
         const s   = Math.floor(total % 60);
-        const dec = Math.round((total % 1) * 1000); // 3 decimales
-        const decStr = String(dec).padStart(3, '0');
-        const sStr = `${s}.${decStr}s`;
+        const dec = String(Math.round((total % 1) * 1000)).padStart(3, '0');
+        const sStr = `${s}.${dec}s`;
         return m > 0 ? `${m}m ${sStr}` : sStr;
     };
-    const htmlTramoDisputado = tramoDisputado
-    
-        ? `
-            <div class="tarjeta-disputado">
-                <div class="seccion-titulo">Tramo más disputado</div>
-                <div class="disputado-header">
-                    <span class="disputado-pe">PE ${tramoDisputado.pe}</span>
-                    <span class="disputado-nombre">| ${tramoDisputado.nombre}</span>
-                </div>
-                <div class="disputado-dif">${fmtDifDisputado(tramoDisputado.difSegundos)}</div>
-                <div class="disputado-dif-label">de diferencia entre 1° y 2°</div>
 
-                <div class="disputado-tiempos">
-                    <span>
-                        <span class="disputado-badge disputado-badge-1">1</span>
-                        <span style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
-                            <span style="font-size:11px;font-weight:600;color:#334155;">${tramoDisputado.piloto1}</span>
-                            <span>${tramoDisputado.tiempo1}</span>
-                        </span>
-                    </span>
-                    <span>
-                        <span class="disputado-badge disputado-badge-2">2</span>
-                        <span style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
-                            <span style="font-size:11px;font-weight:600;color:#334155;">${tramoDisputado.piloto2}</span>
-                            <span>${tramoDisputado.tiempo2}</span>
-                        </span>
-                    </span>
-                </div>
-
-            </div>
-        `
-        : `
+    if (!tramoDisputado) {
+        return `
             <div class="tarjeta-disputado">
                 <div class="seccion-titulo">Tramo más disputado</div>
                 <div class="no-data">Sin información</div>
+            </div>`;
+    }
+    return `
+        <div class="tarjeta-disputado">
+            <div class="seccion-titulo">Tramo más disputado</div>
+            <div class="disputado-header">
+                <span class="disputado-pe">PE ${tramoDisputado.pe}</span>
+                <span class="disputado-nombre">| ${tramoDisputado.nombre}</span>
             </div>
-        `;
+            <div class="disputado-dif">${fmtDifDisputado(tramoDisputado.difSegundos)}</div>
+            <div class="disputado-dif-label">de diferencia entre 1° y 2°</div>
+            <div class="disputado-tiempos">
+                <span>
+                    <span class="disputado-badge disputado-badge-1">1</span>
+                    <span style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
+                        <span style="font-size:11px;font-weight:600;color:#334155;">${tramoDisputado.piloto1}</span>
+                        <span>${tramoDisputado.tiempo1}</span>
+                    </span>
+                </span>
+                <span>
+                    <span class="disputado-badge disputado-badge-2">2</span>
+                    <span style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
+                        <span style="font-size:11px;font-weight:600;color:#334155;">${tramoDisputado.piloto2}</span>
+                        <span>${tramoDisputado.tiempo2}</span>
+                    </span>
+                </span>
+            </div>
+        </div>`;
+}
 
-    // ── HTML: piloto que más posiciones perdió ──
-    const htmlPosicionesPerdidas = posicionesPerdidas && posicionesPerdidas.perdida > 0
-        ? `
-            <div class="tarjeta-remontada tarjeta-perdida">
-                <div class="seccion-titulo">Más posiciones perdidas</div>
-                <div class="remontada-piloto">${posicionesPerdidas.nombre}</div>
-                <span class="remontada-badge perdida-badge">−${posicionesPerdidas.perdida} posicion${posicionesPerdidas.perdida !== 1 ? 'es' : ''}</span>
-                <div class="remontada-posiciones">
-                    <div class="remontada-pos-inicio">
-                        <div class="remontada-pos-numero perdida-pos-mejor">${posicionesPerdidas.posMejor}°</div>
-                        <div class="remontada-pos-label">tras PE ${posicionesPerdidas.desdePE}</div>
-                    </div>
-                    <div class="remontada-flecha perdida-flecha">→</div>
-                    <div class="remontada-pos-fin">
-                        <div class="remontada-pos-numero perdida-pos-fin">${posicionesPerdidas.posFin}°</div>
-                        <div class="remontada-pos-label">Actual</div>
-                    </div>
-                </div>
-                <div class="remontada-ganancia perdida-ganancia">
-                    Cayó <strong>${posicionesPerdidas.perdida}</strong> lugar${posicionesPerdidas.perdida !== 1 ? 'es' : ''} desde su mejor posición (tras PE ${posicionesPerdidas.desdePE})
-                </div>
-            </div>
-        `
-        : `
+function _renderPosicionesPerdidas(posicionesPerdidas) {
+    if (!posicionesPerdidas || posicionesPerdidas.perdida <= 0) {
+        return `
             <div class="tarjeta-remontada tarjeta-perdida">
                 <div class="seccion-titulo">Más posiciones perdidas</div>
                 <div class="no-data">Sin información</div>
+            </div>`;
+    }
+    const p = posicionesPerdidas.perdida;
+    return `
+        <div class="tarjeta-remontada tarjeta-perdida">
+            <div class="seccion-titulo">Más posiciones perdidas</div>
+            <div class="remontada-piloto">${posicionesPerdidas.nombre}</div>
+            <span class="remontada-badge perdida-badge">−${p} posicion${p !== 1 ? 'es' : ''}</span>
+            <div class="remontada-posiciones">
+                <div class="remontada-pos-inicio">
+                    <div class="remontada-pos-numero perdida-pos-mejor">${posicionesPerdidas.posMejor}°</div>
+                    <div class="remontada-pos-label">tras PE ${posicionesPerdidas.desdePE}</div>
+                </div>
+                <div class="remontada-flecha perdida-flecha">→</div>
+                <div class="remontada-pos-fin">
+                    <div class="remontada-pos-numero perdida-pos-fin">${posicionesPerdidas.posFin}°</div>
+                    <div class="remontada-pos-label">Actual</div>
+                </div>
             </div>
-        `;
-
-    const htmlEvolucion = renderizarEvolucionTop5(categoria);
-    const htmlHeatmap = renderizarHeatmapRendimiento(categoria);
-
-    // ── HTML: fila inferior ──
-    const htmlFilaInferior = `
-        <div class="fila-inferior">
-            ${htmlVelocidad}
-            ${htmlConsistente}
-            ${htmlTramoDisputado}
-            ${htmlRemontadaTiempo}
-            ${htmlRemontadaPos}
-            ${htmlPosicionesPerdidas}
-        </div>
-    `;
-
-    contenedor.innerHTML = htmlResumen + htmlGanadores + htmlEvolucion + htmlHeatmap + htmlFilaInferior;
+            <div class="remontada-ganancia perdida-ganancia">
+                Cayó <strong>${p}</strong> lugar${p !== 1 ? 'es' : ''} desde su mejor posición (tras PE ${posicionesPerdidas.desdePE})
+            </div>
+        </div>`;
 }
 
-// ── Evolución Top 5 ───────────────────────────────────────────────────────────
-
-function calcularEvolucionTop5(categoria) {
-    const totalPEs = datosTramos.length;
-    let ultimoPE = 0;
-    for (let i = totalPEs; i >= 1; i--) {
-        const col = `SS${i}`;
-        const hay = pilotosDeCat(categoria).some(p => p[col] && p[col].trim() !== '');
-        if (hay) { ultimoPE = i; break; }
-    }
-    if (ultimoPE === 0) return null;
-
-    // Posiciones acumuladas en cada PE
-    const snapshots = [];
-    for (let pe = 1; pe <= ultimoPE; pe++) {
-        snapshots.push(calcularPosicionesAcumuladas(categoria, pe));
-    }
-
-    // Recolectar todos los pilotos que estuvieron en top 5 en ALGÚN PE
-    const pilotosEnTop5 = new Set();
-    snapshots.forEach(snap => {
-        Object.entries(snap)
-            .filter(([, pos]) => pos <= 5)
-            .forEach(([nombre]) => pilotosEnTop5.add(nombre));
-    });
-
-    if (pilotosEnTop5.size === 0) return null;
-
-    // Para cada piloto, construir puntos SOLO en los PEs donde estuvo en top 5
-    const series = [...pilotosEnTop5].map(nombre => {
-        const puntos = [];
-        for (let pe = 1; pe <= ultimoPE; pe++) {
-            const pos = snapshots[pe - 1][nombre];
-            if (pos !== undefined && pos <= 5) {
-                puntos.push({ pe, pos });
-            }
-        }
-        // Posición final (en el último PE donde aparece)
-        const ultimoSnap = snapshots[ultimoPE - 1];
-        const posFinal = ultimoSnap[nombre] ?? null;
-        return { nombre, puntos, posFinal };
-    });
-
-    // Ordenar por posición final (los que terminaron mejor primero, los que salieron del top al final)
-    series.sort((a, b) => {
-        const pa = a.posFinal ?? 999;
-        const pb = b.posFinal ?? 999;
-        return pa - pb;
-    });
-
-    return { series, totalPEs: ultimoPE };
-}
+// ── Render: evolución top 5 ───────────────────────────────────────────────────
 
 function renderizarEvolucionTop5(categoria) {
-    const data = calcularEvolucionTop5(categoria);
+    const data = calcularEvolucionTop5(categoria, datosPilotos, datosTramos);
     if (!data || data.series.length === 0 || data.totalPEs < 2) return '';
 
     const { series, totalPEs } = data;
-
     const W = 860, H = 260;
     const PAD = { top: 20, right: 160, bottom: 40, left: 48 };
     const gW = W - PAD.left - PAD.right;
     const gH = H - PAD.top - PAD.bottom;
 
-    const xScale = pe => PAD.left + ((pe - 1) / Math.max(totalPEs - 1, 1)) * gW;
-    const yScale = pos => PAD.top + ((pos - 1) / 5) * gH;
+    const xScale = pe  => PAD.left + ((pe - 1) / Math.max(totalPEs - 1, 1)) * gW;
+    const yScale = pos => PAD.top  + ((pos - 1) / 5) * gH;
     const Y_FUERA = yScale(6);
 
     const COLORES = [
@@ -1159,7 +507,6 @@ function renderizarEvolucionTop5(categoria) {
     let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;">`;
     svg += `<rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>`;
 
-    // Grilla horizontal — solo posiciones 1 a 5
     for (let pos = 1; pos <= 5; pos++) {
         const y = yScale(pos);
         svg += `<line x1="${PAD.left}" y1="${y}" x2="${PAD.left + gW}" y2="${y}"
@@ -1168,21 +515,17 @@ function renderizarEvolucionTop5(categoria) {
             font-size="11" font-weight="700" font-family="Orbitron,serif" fill="#5a6472">${pos}°</text>`;
     }
 
-    // Grilla vertical por PE
     for (let pe = 1; pe <= totalPEs; pe++) {
         const x = xScale(pe);
-        svg += `<line x1="${x}" y1="${PAD.top}" x2="${x}" y2="${PAD.top + gH}"
-            stroke="#e2e8f0" stroke-width="1"/>`;
+        svg += `<line x1="${x}" y1="${PAD.top}" x2="${x}" y2="${PAD.top + gH}" stroke="#e2e8f0" stroke-width="1"/>`;
         svg += `<text x="${x}" y="${PAD.top + gH + 18}" text-anchor="middle"
             font-size="11" font-weight="600" font-family="Orbitron,serif" fill="#303743">PE ${pe}</text>`;
     }
 
-    // Líneas y puntos por piloto
     series.forEach(({ nombre, puntos }, idx) => {
         if (puntos.length === 0) return;
         const color = COLORES[idx % COLORES.length];
 
-        // Agrupar puntos en segmentos consecutivos dentro del top 5
         const segmentos = [];
         let segActual = null;
 
@@ -1192,59 +535,40 @@ function renderizarEvolucionTop5(categoria) {
                 if (!segActual) segActual = [];
                 segActual.push(punto);
             } else {
-                if (segActual) {
-                    segmentos.push(segActual);
-                    segActual = null;
-                }
+                if (segActual) { segmentos.push(segActual); segActual = null; }
             }
         }
         if (segActual) segmentos.push(segActual);
 
-        segmentos.forEach((seg, iSeg) => {
+        segmentos.forEach(seg => {
             const primero = seg[0];
-            const ultimo = seg[seg.length - 1];
+            const ultimo  = seg[seg.length - 1];
 
-            const esPrimerPE = primero.pe === 1;
-            const esUltimoPE = ultimo.pe === totalPEs;
-
-            // Línea de entrada: punteada desde Y_FUERA hasta el primer punto del segmento
-            if (!esPrimerPE) {
-                const dEntrada = `M${xScale(primero.pe - 1).toFixed(1)},${Y_FUERA.toFixed(1)} L${xScale(primero.pe).toFixed(1)},${yScale(primero.pos).toFixed(1)}`;
-                svg += `<path d="${dEntrada}" fill="none" stroke="${color}" stroke-width="2"
-                    stroke-dasharray="4,3" stroke-linecap="round" opacity="0.4"/>`;
+            if (primero.pe !== 1) {
+                const d = `M${xScale(primero.pe - 1).toFixed(1)},${Y_FUERA.toFixed(1)} L${xScale(primero.pe).toFixed(1)},${yScale(primero.pos).toFixed(1)}`;
+                svg += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="4,3" stroke-linecap="round" opacity="0.4"/>`;
             }
 
-            // Línea sólida dentro del top 5
             if (seg.length > 1) {
-                const dSolido = seg.map((p, i) =>
-                    `${i === 0 ? 'M' : 'L'}${xScale(p.pe).toFixed(1)},${yScale(p.pos).toFixed(1)}`
-                ).join(' ');
-                svg += `<path d="${dSolido}" fill="none" stroke="${color}" stroke-width="2.5"
-                    stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>`;
+                const d = seg.map((p, i) => `${i === 0 ? 'M' : 'L'}${xScale(p.pe).toFixed(1)},${yScale(p.pos).toFixed(1)}`).join(' ');
+                svg += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>`;
             }
 
-            // Línea de salida: punteada desde el último punto del segmento hacia Y_FUERA
-            if (!esUltimoPE) {
-                const dSalida = `M${xScale(ultimo.pe).toFixed(1)},${yScale(ultimo.pos).toFixed(1)} L${xScale(ultimo.pe + 1).toFixed(1)},${Y_FUERA.toFixed(1)}`;
-                svg += `<path d="${dSalida}" fill="none" stroke="${color}" stroke-width="2"
-                    stroke-dasharray="4,3" stroke-linecap="round" opacity="0.4"/>`;
+            if (ultimo.pe !== totalPEs) {
+                const d = `M${xScale(ultimo.pe).toFixed(1)},${yScale(ultimo.pos).toFixed(1)} L${xScale(ultimo.pe + 1).toFixed(1)},${Y_FUERA.toFixed(1)}`;
+                svg += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="4,3" stroke-linecap="round" opacity="0.4"/>`;
             }
 
-            // Puntos solo dentro del top 5
             seg.forEach(({ pe, pos }) => {
-                svg += `<circle cx="${xScale(pe).toFixed(1)}" cy="${yScale(pos).toFixed(1)}"
-                    r="5" fill="${color}" stroke="white" stroke-width="2"/>`;
+                svg += `<circle cx="${xScale(pe).toFixed(1)}" cy="${yScale(pos).toFixed(1)}" r="5" fill="${color}" stroke="white" stroke-width="2"/>`;
             });
         });
 
-        // Etiqueta al final del último segmento
-        const ultimoSeg = segmentos[segmentos.length - 1];
+        const ultimoSeg   = segmentos[segmentos.length - 1];
         const ultimoPunto = ultimoSeg[ultimoSeg.length - 1];
-        const lx = (xScale(ultimoPunto.pe) + 10).toFixed(1);
-        const ly = (yScale(ultimoPunto.pos) + 4.5).toFixed(1);
         const nombreCorto = nombre.length > 18 ? nombre.split(' ').slice(-1)[0] : nombre;
-        svg += `<text x="${lx}" y="${ly}" font-size="11.5" font-weight="700"
-            font-family="'Segoe UI',sans-serif" fill="${color}">${nombreCorto}</text>`;
+        svg += `<text x="${(xScale(ultimoPunto.pe) + 10).toFixed(1)}" y="${(yScale(ultimoPunto.pos) + 4.5).toFixed(1)}"
+            font-size="11.5" font-weight="700" font-family="'Segoe UI',sans-serif" fill="${color}">${nombreCorto}</text>`;
     });
 
     svg += `</svg>`;
@@ -1267,65 +591,33 @@ function renderizarEvolucionTop5(categoria) {
                     ${leyenda}
                 </div>
             </div>
-        </div>
-    `;
+        </div>`;
 }
 
-// ── Heatmap de Rendimiento ────────────────────────────────────────────────────
+// ── Render: heatmap ───────────────────────────────────────────────────────────
+
 function renderizarHeatmapRendimiento(categoria) {
-    const totalPEs = datosTramos.length;
+    const datos = calcularDatosHeatmap(categoria, datosPilotos, datosTramos);
+    if (!datos) return '';
 
-    let ultimoPE = 0;
-    for (let i = totalPEs; i >= 1; i--) {
-        const col = `SS${i}`;
-        const hay = pilotosDeCat(categoria).some(p => p[col] && p[col].trim() !== '');
-        if (hay) { ultimoPE = i; break; }
-    }
-
-    if (ultimoPE === 0) return '';
-
-    const pilotos = pilotosDeCat(categoria);
-    if (pilotos.length === 0) return '';
-
-    const posicionesFinales = calcularPosicionesAcumuladas(categoria, ultimoPE);
-
-    const todosNombres = Object.entries(posicionesFinales)
-        .sort((a, b) => a[1] - b[1])
-        .map(([nombre]) => nombre);
-
-    const todosPilotos = todosNombres
-        .map(nombre => pilotos.find(p => (p.Nombre || p.NOMBRE) === nombre))
-        .filter(Boolean);
-
-    if (todosPilotos.length === 0) return '';
-
-    const ganadorFinalNombre = todosNombres[0];
-
-    const ganadorFinal = pilotos.find(
-        p => (p.Nombre || p.NOMBRE || '') === ganadorFinalNombre
-    );
-
-    if (!ganadorFinal) return '';
+    const { pilotosOrdenados, ganadorFinal, posicionesFinales, ultimoPE } = datos;
 
     function obtenerColor(delta, esDNFVal, sinDato, esGanador = false) {
         if (sinDato)   return { bg: '#e2e8f0', text: '#94a3b8' };
         if (esDNFVal)  return { bg: '#f87171', text: '#7f1d1d' };
         if (esGanador) return { bg: '#a3d977', text: '#1a3a00' };
-
         if (delta < -0.001) {
             if (delta < -20) return { bg: '#0ea5e9', text: '#ffffff' };
             if (delta < -8)  return { bg: '#38bdf8', text: '#0c4a6e' };
             if (delta < -3)  return { bg: '#7dd3fc', text: '#0c4a6e' };
             return { bg: '#bae6fd', text: '#0369a1' };
         }
-
         if (delta > 0.001) {
             if (delta > 20) return { bg: '#f4694b', text: '#5a0d00' };
             if (delta > 8)  return { bg: '#ffb347', text: '#6b2500' };
             if (delta > 3)  return { bg: '#ffe066', text: '#6b4700' };
             return { bg: '#c8e87a', text: '#2d4a00' };
         }
-
         return { bg: '#a3d977', text: '#1a3a00' };
     }
 
@@ -1340,32 +632,30 @@ function renderizarHeatmapRendimiento(categoria) {
 
     function kmsDelPE(pe) {
         const tramo = datosTramos.find(t => String(t.PE) === String(pe));
-        return tramo && tramo.KMS ? `${parseFloat(tramo.KMS).toFixed(2)} km` : '';
+        return tramo?.KMS ? `${parseFloat(tramo.KMS).toFixed(2)} km` : '';
     }
 
-    const COLORES_POS = ['#f5b800', '#6c9de8', '#3db87a', '#e84a4a', '#9b6be8',
-                         '#06b6d4', '#f97316', '#ec4899', '#84cc16', '#14b8a6',
-                         '#8b5cf6', '#f59e0b', '#64748b'];
+    const ganadorNombre = ganadorFinal.Nombre || ganadorFinal.NOMBRE || '';
+    const COLORES_POS = ['#f5b800','#6c9de8','#3db87a','#e84a4a','#9b6be8',
+                         '#06b6d4','#f97316','#ec4899','#84cc16','#14b8a6',
+                         '#8b5cf6','#f59e0b','#64748b'];
 
     const thPEs = Array.from({ length: ultimoPE }, (_, i) => {
         const pe = i + 1;
         const kms = kmsDelPE(pe);
-        return `
-            <th style="
-                background:#0f172a;color:#e8edf3;padding:12px 10px 10px;
-                text-align:center;font-family:'Orbitron',serif;font-size:13px;
-                font-weight:700;min-width:100px;border-left:1px solid #1e293b;
-            ">
-                PE${pe}
-                ${kms ? `<div style="font-size:10px;font-weight:500;color:#94a3b8;margin-top:3px;font-family:'Segoe UI',sans-serif;">${kms}</div>` : ''}
-            </th>`;
+        return `<th style="background:#0f172a;color:#e8edf3;padding:12px 10px 10px;text-align:center;
+            font-family:'Orbitron',serif;font-size:13px;font-weight:700;min-width:100px;
+            border-left:1px solid #1e293b;">
+            PE${pe}
+            ${kms ? `<div style="font-size:10px;font-weight:500;color:#94a3b8;margin-top:3px;font-family:'Segoe UI',sans-serif;">${kms}</div>` : ''}
+        </th>`;
     }).join('');
 
-    const todasLasFilas = todosPilotos.map((piloto, idx) => {
+    const todasLasFilas = pilotosOrdenados.map((piloto, idx) => {
         const nombre = piloto.Nombre || piloto.NOMBRE || '';
         const pos = posicionesFinales[nombre] ?? (idx + 1);
         const colorPos = COLORES_POS[idx % COLORES_POS.length];
-        const esGanadorFinal = nombre === ganadorFinalNombre;
+        const esGanadorFinal = nombre === ganadorNombre;
 
         const penRaw = piloto.PENALIZACION || piloto.Penalizacion || '';
         const penSeg = tiempoASegundos(penRaw);
@@ -1373,93 +663,71 @@ function renderizarHeatmapRendimiento(categoria) {
         const penDisplay = tienePen ? segundosATiempo(penSeg, 2) : null;
 
         const celdas = Array.from({ length: ultimoPE }, (_, i) => {
-            const pe = i + 1;
+            const pe  = i + 1;
             const col = `SS${pe}`;
 
             if (esGanadorFinal) {
-                const tiempoGanadorFinal = piloto[col];
+                const t = piloto[col];
                 const colorInfo = obtenerColor(0, false, false, true);
                 let displayVal = '—';
-                if (tiempoGanadorFinal && tiempoGanadorFinal.trim() !== '') {
-                    if (esDNF(tiempoGanadorFinal)) {
-                        displayVal = 'DNF';
-                    } else {
-                        const seg = tiempoASegundos(tiempoGanadorFinal);
-                        displayVal = seg < 999999 ? segundosATiempo(seg, 3) : '—';
-                    }
+                if (t && t.trim() !== '') {
+                    displayVal = esDNF(t) ? 'DNF' : (() => {
+                        const seg = tiempoASegundos(t);
+                        return seg < 999999 ? segundosATiempo(seg, 3) : '—';
+                    })();
                 }
-                return `
-                    <td style="
-                        background:${colorInfo.bg};color:${colorInfo.text};
-                        text-align:center;padding:16px 8px;font-size:14px;font-weight:700;
-                        border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;
-                    ">${displayVal}</td>`;
+                return `<td style="background:${colorInfo.bg};color:${colorInfo.text};text-align:center;
+                    padding:16px 8px;font-size:14px;font-weight:700;
+                    border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">${displayVal}</td>`;
             }
 
-            const tiempoPiloto = piloto[col];
-            const tiempoGanador = ganadorFinal[col];
+            const tPiloto  = piloto[col];
+            const tGanador = ganadorFinal[col];
 
-            if (!tiempoPiloto || tiempoPiloto.trim() === '') {
-                const colorInfo = obtenerColor(0, false, true);
-                return `<td style="background:${colorInfo.bg};color:${colorInfo.text};
-                    text-align:center;padding:16px 8px;font-size:14px;font-weight:700;
-                    border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">—</td>`;
+            if (!tPiloto || tPiloto.trim() === '') {
+                const c = obtenerColor(0, false, true);
+                return `<td style="background:${c.bg};color:${c.text};text-align:center;padding:16px 8px;
+                    font-size:14px;font-weight:700;border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">—</td>`;
+            }
+            if (esDNF(tPiloto)) {
+                const c = obtenerColor(0, true, false);
+                return `<td style="background:${c.bg};color:${c.text};text-align:center;padding:16px 8px;
+                    font-size:14px;font-weight:700;border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">DNF</td>`;
+            }
+            if (!tGanador || esDNF(tGanador)) {
+                const c = obtenerColor(0, false, true);
+                return `<td style="background:${c.bg};color:${c.text};text-align:center;padding:16px 8px;
+                    font-size:14px;font-weight:700;border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">—</td>`;
             }
 
-            if (esDNF(tiempoPiloto)) {
-                const colorInfo = obtenerColor(0, true, false);
-                return `<td style="background:${colorInfo.bg};color:${colorInfo.text};
-                    text-align:center;padding:16px 8px;font-size:14px;font-weight:700;
-                    border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">DNF</td>`;
-            }
-
-            if (!tiempoGanador || esDNF(tiempoGanador)) {
-                const colorInfo = obtenerColor(0, false, true);
-                return `<td style="background:${colorInfo.bg};color:${colorInfo.text};
-                    text-align:center;padding:16px 8px;font-size:14px;font-weight:700;
-                    border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">—</td>`;
-            }
-
-            const segPiloto  = tiempoASegundos(tiempoPiloto);
-            const segGanador = tiempoASegundos(tiempoGanador);
+            const segPiloto  = tiempoASegundos(tPiloto);
+            const segGanador = tiempoASegundos(tGanador);
 
             if (segPiloto >= 999999 || segGanador >= 999999) {
-                const colorInfo = obtenerColor(0, false, true);
-                return `<td style="background:${colorInfo.bg};color:${colorInfo.text};
-                    text-align:center;padding:16px 8px;font-size:14px;font-weight:700;
-                    border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">—</td>`;
+                const c = obtenerColor(0, false, true);
+                return `<td style="background:${c.bg};color:${c.text};text-align:center;padding:16px 8px;
+                    font-size:14px;font-weight:700;border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">—</td>`;
             }
 
             const delta = segPiloto - segGanador;
-            const colorInfo = obtenerColor(delta, false, false);
-
-            return `
-                <td style="
-                    background:${colorInfo.bg};color:${colorInfo.text};
-                    text-align:center;padding:16px 8px;font-size:14px;font-weight:700;
-                    border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;
-                ">
-                    ${formatearDelta(delta)}
-                </td>`;
+            const c = obtenerColor(delta, false, false);
+            return `<td style="background:${c.bg};color:${c.text};text-align:center;padding:16px 8px;
+                font-size:14px;font-weight:700;border-left:1px solid rgba(255,255,255,0.3);white-space:nowrap;">
+                ${formatearDelta(delta)}</td>`;
         }).join('');
 
         const bgFila = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
-
         return `
             <tr style="background:${bgFila};">
                 <td style="padding:0;width:52px;border-right:1px solid #e2e8f0;">
                     <div style="display:flex;align-items:center;height:100%;min-height:56px;">
                         <div style="width:5px;background:${colorPos};align-self:stretch;flex-shrink:0;"></div>
                         <div style="flex:1;text-align:center;font-family:'Orbitron',serif;
-                            font-size:18px;font-weight:800;color:#0f172a;padding:16px 8px;">
-                            ${pos}
-                        </div>
+                            font-size:18px;font-weight:800;color:#0f172a;padding:16px 8px;">${pos}</div>
                     </div>
                 </td>
-                <td style="
-                    padding:16px;font-size:13px;font-weight:700;color:#0f172a;
-                    border-right:1px solid #e2e8f0;white-space:nowrap;min-width:140px;
-                ">
+                <td style="padding:16px;font-size:13px;font-weight:700;color:#0f172a;
+                    border-right:1px solid #e2e8f0;white-space:nowrap;min-width:140px;">
                     ${nombre}
                     ${penDisplay ? `<div style="font-size:11px;font-weight:600;color:#dc2626;margin-top:3px;">+${penDisplay}</div>` : ''}
                 </td>
@@ -1467,139 +735,125 @@ function renderizarHeatmapRendimiento(categoria) {
             </tr>`;
     });
 
-    const leyendaItems = [
-        { color: '#0ea5e9', text: 'Recortó +20s' },
-        { color: '#38bdf8', text: 'Recortó 8–20s' },
-        { color: '#7dd3fc', text: 'Recortó 3–8s' },
-        { color: '#bae6fd', text: 'Recortó ≤3s' },
-        { color: '#a3d977', text: 'Lider' },
-        { color: '#c8e87a', text: 'Perdió ≤3s' },
-        { color: '#ffe066', text: 'Perdió 3–8s' },
-        { color: '#ffb347', text: 'Perdió 8–20s' },
-        { color: '#f4694b', text: 'Perdió +20s' },
-        { color: '#f87171', text: 'DNF' },
-    ];
+    const PAGINA = 5;
+    const heatmapId = `heatmap-tbody-${categoria.replace(/\s+/g, '')}`;
+    const btnId = `heatmap-btn-${categoria.replace(/\s+/g, '')}`;
+    const hayMas = pilotosOrdenados.length > PAGINA;
 
+    setHeatmapFilas(heatmapId, todasLasFilas);
+
+    const estadoPrevio = getEstadoHeatmap(heatmapId);
+    if (estadoPrevio && estadoPrevio.visible > PAGINA) {
+        setTimeout(() => _restaurarEstadoHeatmap(heatmapId, btnId, PAGINA, pilotosOrdenados.length), 0);
+    }
+
+    const leyendaItems = [
+        { color: '#0ea5e9', text: 'Recortó +20s' }, { color: '#38bdf8', text: 'Recortó 8–20s' },
+        { color: '#7dd3fc', text: 'Recortó 3–8s' }, { color: '#bae6fd', text: 'Recortó ≤3s' },
+        { color: '#a3d977', text: 'Lider' },         { color: '#c8e87a', text: 'Perdió ≤3s' },
+        { color: '#ffe066', text: 'Perdió 3–8s' },  { color: '#ffb347', text: 'Perdió 8–20s' },
+        { color: '#f4694b', text: 'Perdió +20s' },  { color: '#f87171', text: 'DNF' },
+    ];
     const leyendaHTML = leyendaItems.map(({ color, text }) => `
         <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;">
             <div style="width:20px;height:14px;background:${color};border-radius:3px;"></div>
             <span>${text}</span>
         </div>`).join('');
 
-    const PAGINA = 5;
-    const heatmapId = `heatmap-tbody-${categoria.replace(/\s+/g, '')}`;
-    const btnId = `heatmap-btn-${categoria.replace(/\s+/g, '')}`;
-    const hayMas = todosPilotos.length > PAGINA;
-
-    window._heatmapFilas = window._heatmapFilas || {};
-    window._heatmapFilas[heatmapId] = todasLasFilas;
-
-    // ── Restaurar estado previo tras recarga automática ──
-    const estadoPrevio = estadoHeatmap[heatmapId];
-    if (estadoPrevio && estadoPrevio.visible > PAGINA) {
-        setTimeout(() => {
-            const tbody = document.getElementById(heatmapId);
-            const container = document.getElementById(`${btnId}-container`);
-            if (!tbody || !container) return;
-
-            tbody.innerHTML = window._heatmapFilas[heatmapId].slice(0, estadoPrevio.visible).join('');
-
-            const btnExpandir = container.querySelector('button:not([data-ocultar])');
-            if (btnExpandir) {
-                btnExpandir.dataset.visible = estadoPrevio.visible;
-                if (estadoPrevio.visible >= todosPilotos.length) {
-                    btnExpandir.style.display = 'none';
-                }
-            }
-
-            if (!container.querySelector('[data-ocultar]')) {
-                const btnOcultar = document.createElement('button');
-                btnOcultar.dataset.ocultar = 'true';
-                btnOcultar.dataset.heatmap = heatmapId;
-                btnOcultar.textContent = '▲ Ocultar';
-                btnOcultar.style.cssText = `
-                    background:linear-gradient(135deg,#374151 0%,#4b5563 100%);
-                    color:#e8edf3;border:none;border-radius:8px;padding:10px 28px;
-                    font-family:'Orbitron',serif;font-size:13px;font-weight:600;
-                    cursor:pointer;letter-spacing:0.5px;
-                    box-shadow:0 4px 12px rgba(15,23,42,0.25);
-                    transition:all 0.2s ease;
-                `;
-                btnOcultar.onmouseover = () => btnOcultar.style.transform = 'translateY(-2px)';
-                btnOcultar.onmouseout  = () => btnOcultar.style.transform = 'translateY(0)';
-                btnOcultar.onclick = () => {
-                    const filas = Array.from(tbody.querySelectorAll('tr'));
-                    filas.slice(PAGINA).forEach(f => f.classList.add('heatmap-ocultando'));
-                    setTimeout(() => {
-                        tbody.classList.remove('heatmap-tbody-animado');
-                        tbody.innerHTML = window._heatmapFilas[heatmapId].slice(0, PAGINA).join('');
-                        if (btnExpandir) {
-                            btnExpandir.dataset.visible = PAGINA;
-                            btnExpandir.style.display = '';
-                        }
-                        delete estadoHeatmap[heatmapId];
-                        btnOcultar.remove();
-                    }, 260);
-                };
-                container.appendChild(btnOcultar);
-            }
-        }, 0);
-    }
-
     return `
         <div style="margin-bottom:30px;">
             <div class="seccion-titulo">Diferencias al Líder por Tramo</div>
-            <div style="
-                background:#f8fafc;border:1.5px solid #d7dde5;border-radius:12px;
-                padding:18px;box-shadow:0 4px 14px rgba(15,23,42,0.07);overflow-x:auto;
-            ">
-                <table style="
-                    width:100%;border-collapse:collapse;border-radius:10px;
-                    overflow:hidden;box-shadow:0 4px 16px rgba(15,23,42,0.12);
-                ">
+            <div style="background:#f8fafc;border:1.5px solid #d7dde5;border-radius:12px;
+                padding:18px;box-shadow:0 4px 14px rgba(15,23,42,0.07);overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;border-radius:10px;
+                    overflow:hidden;box-shadow:0 4px 16px rgba(15,23,42,0.12);">
                     <thead>
                         <tr>
-                            <th style="background:#0f172a;color:#e8edf3;padding:12px 10px;
-                                text-align:center;font-size:11px;font-weight:700;
-                                letter-spacing:1px;text-transform:uppercase;width:52px;">POS</th>
-                            <th style="background:#0f172a;color:#e8edf3;padding:12px 16px;
-                                text-align:center;font-size:11px;font-weight:700;
-                                letter-spacing:1px;text-transform:uppercase;
+                            <th style="background:#0f172a;color:#e8edf3;padding:12px 10px;text-align:center;
+                                font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;width:52px;">POS</th>
+                            <th style="background:#0f172a;color:#e8edf3;padding:12px 16px;text-align:center;
+                                font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
                                 border-left:1px solid #1e293b;">PILOTO</th>
                             ${thPEs}
                         </tr>
                     </thead>
                     <tbody id="${heatmapId}">${todasLasFilas.slice(0, PAGINA).join('')}</tbody>
                 </table>
-
                 ${hayMas ? `
                     <div id="${btnId}-container" style="display:flex;justify-content:center;gap:10px;margin-top:14px;">
                         <button
                             data-visible="${PAGINA}"
-                            data-total="${todosPilotos.length}"
+                            data-total="${pilotosOrdenados.length}"
                             data-heatmap="${heatmapId}"
                             onclick="expandirHeatmap(this)"
-                            style="
-                                background:linear-gradient(135deg,#0f172a 0%,#232830 100%);
+                            style="background:linear-gradient(135deg,#0f172a 0%,#232830 100%);
                                 color:#e8edf3;border:none;border-radius:8px;padding:10px 28px;
                                 font-family:'Orbitron',serif;font-size:13px;font-weight:600;
                                 cursor:pointer;letter-spacing:0.5px;
-                                box-shadow:0 4px 12px rgba(15,23,42,0.25);
-                                transition:all 0.2s ease;
-                            "
+                                box-shadow:0 4px 12px rgba(15,23,42,0.25);transition:all 0.2s ease;"
                             onmouseover="this.style.transform='translateY(-2px)'"
                             onmouseout="this.style.transform='translateY(0)'">
                             ▼ Ver más
                         </button>
-                    </div>
-                ` : ''}
-
+                    </div>` : ''}
                 <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;
                     padding-top:12px;border-top:1px solid #e2e8f0;justify-content:center;">
                     ${leyendaHTML}
                 </div>
             </div>
         </div>`;
+}
+
+function _estilosBtnHeatmap() {
+    return `background:linear-gradient(135deg,#374151 0%,#4b5563 100%);
+        color:#e8edf3;border:none;border-radius:8px;padding:10px 28px;
+        font-family:'Orbitron',serif;font-size:13px;font-weight:600;
+        cursor:pointer;letter-spacing:0.5px;
+        box-shadow:0 4px 12px rgba(15,23,42,0.25);transition:all 0.2s ease;`;
+}
+
+function _crearBotonOcultar(tbodyId, btnVisible, PAGINA) {
+    const btn = document.createElement('button');
+    btn.dataset.ocultar = 'true';
+    btn.dataset.heatmap = tbodyId;
+    btn.textContent = '▲ Ocultar';
+    btn.style.cssText = _estilosBtnHeatmap();
+    btn.onmouseover = () => btn.style.transform = 'translateY(-2px)';
+    btn.onmouseout  = () => btn.style.transform = 'translateY(0)';
+    btn.onclick = () => {
+        const tbody = document.getElementById(tbodyId);
+        const filas = Array.from(tbody.querySelectorAll('tr'));
+        filas.slice(PAGINA).forEach(f => f.classList.add('heatmap-ocultando'));
+        setTimeout(() => {
+            tbody.classList.remove('heatmap-tbody-animado');
+            tbody.innerHTML = (getHeatmapFilas(tbodyId) || []).slice(0, PAGINA).join('');
+            if (btnVisible) { btnVisible.dataset.visible = PAGINA; btnVisible.style.display = ''; }
+            deleteEstadoHeatmap(tbodyId);
+            btn.remove();
+        }, 260);
+    };
+    return btn;
+}
+
+function _restaurarEstadoHeatmap(heatmapId, btnId, PAGINA, total) {
+    const estadoPrevio = getEstadoHeatmap(heatmapId);
+    if (!estadoPrevio) return;
+
+    const tbody = document.getElementById(heatmapId);
+    const container = document.getElementById(`${btnId}-container`);
+    if (!tbody || !container) return;
+
+    tbody.innerHTML = (getHeatmapFilas(heatmapId) || []).slice(0, estadoPrevio.visible).join('');
+
+    const btnExpandir = container.querySelector('button:not([data-ocultar])');
+    if (btnExpandir) {
+        btnExpandir.dataset.visible = estadoPrevio.visible;
+        if (estadoPrevio.visible >= total) btnExpandir.style.display = 'none';
+    }
+
+    if (!container.querySelector('[data-ocultar]')) {
+        container.appendChild(_crearBotonOcultar(heatmapId, btnExpandir, PAGINA));
+    }
 }
 
 function expandirHeatmap(btn) {
@@ -1610,79 +864,36 @@ function expandirHeatmap(btn) {
     const containerId = tbodyId.replace('heatmap-tbody-', 'heatmap-btn-') + '-container';
     const container = document.getElementById(containerId);
     const tbody = document.getElementById(tbodyId);
+    const filas = getHeatmapFilas(tbodyId);
 
-    if (!tbody || !window._heatmapFilas || !window._heatmapFilas[tbodyId]) return;
+    if (!tbody || !filas) return;
 
     visible = Math.min(visible + PAGINA, total);
     btn.dataset.visible = visible;
-    estadoHeatmap[tbodyId] = { visible };
+    setEstadoHeatmap(tbodyId, { visible });
 
-    // Agregar clase para animar las filas nuevas
     tbody.classList.remove('heatmap-tbody-animado');
-    void tbody.offsetWidth; // forzar reflow para reiniciar animación
-    tbody.innerHTML = window._heatmapFilas[tbodyId].slice(0, visible).join('');
+    void tbody.offsetWidth;
+    tbody.innerHTML = filas.slice(0, visible).join('');
     tbody.classList.add('heatmap-tbody-animado');
 
     if (visible >= total) btn.style.display = 'none';
 
     if (!container.querySelector('[data-ocultar]')) {
-        const btnOcultar = document.createElement('button');
-        btnOcultar.dataset.ocultar = 'true';
-        btnOcultar.dataset.heatmap = tbodyId;
-        btnOcultar.textContent = '▲ Ocultar';
-        btnOcultar.style.cssText = `
-            background:linear-gradient(135deg,#374151 0%,#4b5563 100%);
-            color:#e8edf3;border:none;border-radius:8px;padding:10px 28px;
-            font-family:'Orbitron',serif;font-size:13px;font-weight:600;
-            cursor:pointer;letter-spacing:0.5px;
-            box-shadow:0 4px 12px rgba(15,23,42,0.25);
-            transition:all 0.2s ease;
-        `;
-        btnOcultar.onmouseover = () => btnOcultar.style.transform = 'translateY(-2px)';
-        btnOcultar.onmouseout  = () => btnOcultar.style.transform = 'translateY(0)';
-        btnOcultar.onclick = () => {
-            // Animar salida de las filas que van a desaparecer
-            const filas = Array.from(tbody.querySelectorAll('tr'));
-            const filasAOcultar = filas.slice(PAGINA);
-
-            if (filasAOcultar.length === 0) {
-                // No hay nada que ocultar, limpiar igual
-                btn.dataset.visible = PAGINA;
-                btn.style.display = '';
-                delete estadoHeatmap[tbodyId];
-                btnOcultar.remove();
-                return;
-            }
-
-            // Aplicar animación de salida solo a las filas extras
-            filasAOcultar.forEach(fila => fila.classList.add('heatmap-ocultando'));
-
-            // Esperar que termine la animación y luego cortar el innerHTML
-            setTimeout(() => {
-                tbody.classList.remove('heatmap-tbody-animado');
-                tbody.innerHTML = window._heatmapFilas[tbodyId].slice(0, PAGINA).join('');
-
-                btn.dataset.visible = PAGINA;
-                btn.style.display = '';
-                btnOcultar.remove();
-            }, 260); // un poco más que la duración del fade-out (250ms)
-        };
-        container.appendChild(btnOcultar);
+        container.appendChild(_crearBotonOcultar(tbodyId, btn, PAGINA));
     }
 }
 
 // ── Carga de datos ────────────────────────────────────────────────────────────
 
 function actualizarUltimaActualizacion() {
-    const ahora = new Date();
     document.getElementById('lastUpdate').textContent =
-        `Última actualización: ${ahora.toLocaleTimeString('es-AR')}`;
+        `Última actualización: ${new Date().toLocaleTimeString('es-AR')}`;
 }
 
 async function cargarDatos() {
     try {
         const cacheBuster = `&t=${Date.now()}`;
-
         const [respPilotos, respTramos] = await Promise.all([
             fetch(URL_PILOTOS + cacheBuster),
             fetch(URL_TRAMOS  + cacheBuster)
@@ -1691,16 +902,18 @@ async function cargarDatos() {
         datosPilotos = analizarPilotosCSV(await respPilotos.text());
         datosTramos  = analizarTramosCSV(await respTramos.text());
 
-        const categorias = obtenerCategoriasConTiempos();
+        const categorias = obtenerCategoriasConTiempos(datosPilotos, datosTramos);
         renderizarBotonesCategorias(categorias);
 
-        const categoriaGuardada = sessionStorage.getItem('categoriaActiva');
-        if (!categoriaActiva && categoriaGuardada && categorias.includes(categoriaGuardada)) {
-            seleccionarCategoria(categoriaGuardada);
-        } else if (!categoriaActiva && categorias.length > 0) {
+        const guardada = getCategoriaGuardada();
+        const activa   = getCategoriaActiva();
+
+        if (!activa && guardada && categorias.includes(guardada)) {
+            seleccionarCategoria(guardada);
+        } else if (!activa && categorias.length > 0) {
             seleccionarCategoria(categorias[0]);
-        } else if (categoriaActiva) {
-            seleccionarCategoria(categoriaActiva);
+        } else if (activa) {
+            seleccionarCategoria(activa);
         } else {
             document.getElementById('content').innerHTML =
                 '<div class="no-data">No hay tiempos cargados todavía.</div>';
@@ -1708,13 +921,11 @@ async function cargarDatos() {
 
         actualizarUltimaActualizacion();
     } catch (error) {
-        // Solo mostrar error si no hay datos previos (primera carga)
         const hayDatos = datosPilotos.length > 0 || datosTramos.length > 0;
         if (!hayDatos) {
             document.getElementById('content').innerHTML =
                 '<div class="error">Error al cargar los datos.</div>';
         }
-        // Si ya había datos, simplemente ignoramos el error silenciosamente
         console.error('Error al recargar:', error);
     }
 }
