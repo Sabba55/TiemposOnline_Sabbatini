@@ -554,18 +554,20 @@ function renderizarBotonesCategorias(categorias) {
         '<option value="__ninguna__">Ocultar todas</option>',
         ...categorias.map(cat => {
             const oculta = ocultas.includes(cat);
-            return `<option value="${cat}">${oculta ? '○' : '●'} ${cat}</option>`;
+            return `<option value="${cat}">${oculta ? '☐' : '☑'} ${cat}</option>`;
         })
     ].join('');
 
     const selectHTML = categorias.length === 0 ? '' : `
             <div class="select-filtro-wrapper">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                     aria-hidden="true">
-                    <line x1="21" y1="6" x2="3" y2="6"/>
-                    <line x1="17" y1="12" x2="7" y2="12"/>
-                    <line x1="13" y1="18" x2="11" y2="18"/>
+                    <path d="M13 5h8"/>
+                    <path d="M13 12h8"/>
+                    <path d="M13 19h8"/>
+                    <path d="m3 17 2 2 4-4"/>
+                    <rect x="3" y="4" width="6" height="6" rx="1"/>
                 </svg>
                 <select id="selectFiltroCategorias" onchange="aplicarFiltroSelect(this)">
                     ${opcionesHTML}
@@ -619,7 +621,7 @@ function aplicarFiltroSelect(selectEl) {
     opciones.forEach(opt => {
         const cat = opt.value;
         const oculta = nuevasOcultas.includes(cat);
-        opt.textContent = `${oculta ? '○' : '●'} ${cat}`;
+        opt.textContent = `${oculta ? '☐' : '☑'} ${cat}`;
     });
 
     // Resetear al placeholder
