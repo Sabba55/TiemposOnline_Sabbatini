@@ -25,6 +25,15 @@ const {
     calcularDatosHeatmap,
     pilotosDeCat,
     ultimoPEConDatos,
+    hayTiemposRegistrados,
+    calcularKmsTotales,
+    calcularResumenGeneral,
+    calcularTramoMasRapidoGeneral,
+    calcularTramoMasDisputadoGeneral,
+    calcularPilotoMayoresSanciones,
+    calcularPilotoMasConsistenteGeneral,
+    calcularTablasMarcas,
+    calcularTramoConMasDNFs,
 } = window.UtilidadesCalculos;
 
 const {
@@ -61,7 +70,16 @@ function renderizarBotonesCategorias(categorias) {
     const nav = document.getElementById('categoriasNav');
     if (!nav) return;
 
-    nav.innerHTML = categorias
+    const hayTiempos = hayTiemposRegistrados(datosPilotos, datosTramos);
+
+    const btnGeneral = hayTiempos
+        ? `<button
+                class="btn-categoria${getCategoriaActiva() === 'General' ? ' activo' : ''}"
+                onclick="seleccionarCategoria('General')"
+            >General</button>`
+        : '';
+
+    nav.innerHTML = btnGeneral + categorias
         .map(cat => {
             const esActiva = cat === getCategoriaActiva();
             return `<button
@@ -79,7 +97,11 @@ function seleccionarCategoria(categoria) {
         btn.classList.toggle('activo', btn.textContent === categoria);
     });
 
-    renderizarEstadisticasCategoria(categoria);
+    if (categoria === 'General') {
+        renderizarEstadisticasGenerales();
+    } else {
+        renderizarEstadisticasCategoria(categoria);
+    }
 }
 
 // ── Render principal ──────────────────────────────────────────────────────────
@@ -105,6 +127,98 @@ function renderizarEstadisticasCategoria(categoria) {
         renderizarHeatmapRendimiento(categoria),
         renderizarFilaInferior(velocidadMax, consistente, categoria, tramoDisputado, remontadaTiempo, remontadaPos, posicionesPerdidas),
     ].join('');
+}
+
+function renderizarEstadisticasGenerales() {
+    const contenedor = document.getElementById('content');
+
+    const kms                = calcularKmsTotales(datosTramos);
+    const resumen            = calcularResumenGeneral(datosPilotos, datosTramos);
+    const tramoRapido        = calcularTramoMasRapidoGeneral(datosPilotos, datosTramos);
+    const tramoDisputado     = calcularTramoMasDisputadoGeneral(datosPilotos, datosTramos);
+    const mayorSancion       = calcularPilotoMayoresSanciones(datosPilotos, datosTramos);
+    const consistenteGeneral = calcularPilotoMasConsistenteGeneral(datosPilotos, datosTramos);
+    const tablaMarcas        = calcularTablasMarcas(datosPilotos, datosTramos);
+    const tramoMasDNFs       = calcularTramoConMasDNFs(datosPilotos, datosTramos);
+
+    const colorPorcentaje = resumen.porcentaje === null ? '#16a34a'
+        : resumen.porcentaje < 30  ? '#dc2626'
+        : resumen.porcentaje <= 70 ? '#ea580c'
+        :                            '#16a34a';
+
+    const htmlPorcentaje = resumen.porcentaje !== null
+        ? `<div class="tarjeta-resumen">
+               <div class="seccion-titulo">Finalizaron sin DNF</div>
+               <div class="tarjeta-valor" style="color:${colorPorcentaje};">${resumen.porcentaje}%</div>
+               <div class="tarjeta-label">${resumen.sinDNF} de ${resumen.largaron} vehículos completaron todos los PE</div>
+           </div>`
+        : `<div class="tarjeta-resumen">
+               <div class="seccion-titulo">Finalizaron sin DNF</div>
+               <div class="no-data">Sin información</div>
+           </div>`;
+
+    const htmlKms = kms
+        ? `<div class="tarjeta-resumen" style="text-align:center;">
+            <div class="seccion-titulo">Kilómetros totales</div>
+            <div class="tarjeta-valor" style="font-size:42px;">${kms} <span style="font-size:22px;font-weight:700;color:var(--color-texto-suave);">km</span></div>
+            <div class="tarjeta-label">cronometrados en ${datosTramos.length} PE${datosTramos.length !== 1 ? 's' : ''}</div>
+        </div>`
+        : '';
+
+    const htmlMayorSancion = mayorSancion
+        ? `<div class="tarjeta-velocidad" style="--accent:#dc2626;">
+               <div class="seccion-titulo">Piloto mas sancionado</div>
+               <div class="velocidad-piloto">${mayorSancion.nombre}</div>
+               <div style="text-align:center;font-size:13px;color:var(--color-texto-suave);margin-bottom:10px;">${mayorSancion.categoria}</div>
+               <div class="velocidad-numero-row">
+                   <span class="velocidad-numero" style="color:#dc2626;font-size:32px;">${mayorSancion.penDisplay}</span>
+               </div>
+               <div class="velocidad-detalle">
+                   <span>Total de penalizaciones acumuladas</span>
+               </div>
+           </div>`
+        : '';
+
+    const colsFila = mayorSancion ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)';
+
+    contenedor.innerHTML = `
+
+        <div class="resumen-grid">
+            <div class="tarjeta-resumen">
+                <div class="seccion-titulo">Inscriptos</div>
+                <div class="tarjeta-valor">${resumen.totalInscriptos}</div>
+                <div class="tarjeta-label">anotados</div>
+            </div>
+            <div class="tarjeta-resumen">
+                <div class="seccion-titulo">Largaron</div>
+                <div class="tarjeta-valor">${resumen.largaron}</div>
+                <div class="tarjeta-label">pilotos</div>
+            </div>
+            <div class="tarjeta-resumen tarjeta-dnf">
+                <div class="seccion-titulo">Abandonos</div>
+                <div class="tarjeta-valor">${resumen.dnfs}</div>
+                <div class="tarjeta-label">abandonos registrados</div>
+            </div>
+            ${htmlPorcentaje}
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;margin-bottom:30px;align-items:center;">
+            <div>
+                ${_renderTablaMarcas(tablaMarcas)}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:20px;">
+                ${htmlKms}
+                ${_renderTramoConMasDNFs(tramoMasDNFs)}
+            </div>
+        </div>
+
+        <div class="fila-inferior" style="grid-template-columns:${colsFila};">
+            ${_renderVelocidad(tramoRapido)}
+            ${_renderTramoDisputado(tramoDisputado)}
+            ${_renderConsistenteGeneral(consistenteGeneral)}
+            ${htmlMayorSancion}
+        </div>
+    `;
 }
 
 // ── Render: resumen ───────────────────────────────────────────────────────────
@@ -331,6 +445,27 @@ function _renderConsistente(consistente, categoria) {
         </div>`;
 }
 
+function _renderConsistenteGeneral(consistente) {
+    if (!consistente) {
+        return `
+            <div class="tarjeta-consistencia">
+                <div class="seccion-titulo">Piloto más consistente</div>
+                <div class="no-data">Sin información</div>
+            </div>`;
+    }
+    return `
+        <div class="tarjeta-consistencia">
+            <div class="seccion-titulo">Piloto más consistente</div>
+            <div class="consistencia-piloto">${consistente.nombre}</div>
+            <div style="text-align:center;font-size:13px;color:var(--color-texto-suave);margin-bottom:10px;">${consistente.categoria}</div>
+            <div class="consistencia-desvio">${consistente.desvio}%</div>
+            <div class="consistencia-desvio-label">variación promedio</div>
+            <div class="consistencia-explicacion">
+                Cuanto más bajo, más regular es el piloto.
+            </div>
+        </div>`;
+}
+
 function _fmtDif(seg) {
     const total = Math.abs(seg);
     const m  = Math.floor(total / 60);
@@ -427,7 +562,7 @@ function _renderTramoDisputado(tramoDisputado) {
         <div class="tarjeta-disputado">
             <div class="seccion-titulo">Tramo más disputado</div>
             <div class="disputado-header">
-                <span class="disputado-pe">PE ${tramoDisputado.pe}</span>
+                <span class="disputado-pe" style="font-size:12px">PE ${tramoDisputado.pe}</span>
                 <span class="disputado-nombre">| ${tramoDisputado.nombre}</span>
             </div>
             <div class="disputado-dif">${fmtDifDisputado(tramoDisputado.difSegundos)}</div>
@@ -479,6 +614,126 @@ function _renderPosicionesPerdidas(posicionesPerdidas) {
             <div class="remontada-ganancia perdida-ganancia">
                 Cayó <strong>${p}</strong> lugar${p !== 1 ? 'es' : ''} desde su mejor posición (tras PE ${posicionesPerdidas.desdePE})
             </div>
+        </div>`;
+}
+
+function _renderTablaMarcas(marcas) {
+    if (!marcas || marcas.length === 0) {
+        return `
+            <div style="margin-bottom:0;">
+                <div class="seccion-titulo">Marcas</div>
+                <div class="no-data">Sin información</div>
+            </div>`;
+    }
+
+    const filas = marcas.map((m, idx) => {
+        const rutaLogo = obtenerRutaLogoMarca(m.marca + ' x');
+        const porcentaje = m.largaron > 0
+            ? Math.round((m.finalizaron / m.largaron) * 100)
+            : 0;
+        const colorPct = porcentaje < 30 ? '#dc2626'
+            : porcentaje <= 70           ? '#ea580c'
+            :                              '#16a34a';
+        const bgFila = idx % 2 === 0 ? '#f0f3f6' : '#ffffff';
+
+        const badgesCategorias = m.victoriasPE > 0
+            ? Object.entries(m.victoriasPorCategoria)
+                .map(([cat, count]) => `
+                    <span style="background:var(--color-azul-principal);color:var(--color-texto-claro);
+                        border-radius:5px;padding:2px 7px;font-size:10px;font-weight:700;
+                        letter-spacing:0.5px;white-space:nowrap;">
+                        ${cat} ${count}
+                    </span>`)
+                .join('')
+            : '';
+
+        return `
+            <tr style="background:${bgFila};">
+                <td style="padding:12px 16px;text-align:center;">
+                    <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+                        ${rutaLogo
+                            ? `<img src="${rutaLogo}" alt="${m.marca}"
+                                style="height:22px;object-fit:contain;"
+                                onerror="this.style.display='none'">`
+                            : ''}
+                        <span style="font-size:14px;font-weight:700;color:var(--color-texto);">${m.marca}</span>
+                    </div>
+                </td>
+                <td style="text-align:center;padding:12px 16px;">
+                    <span style="font-family:'Orbitron',serif;font-size:17px;font-weight:600;color:var(--color-texto);">${m.largaron}</span>
+                </td>
+                <td style="text-align:center;padding:12px 16px;">
+                    <span style="font-family:'Orbitron',serif;font-size:18px;font-weight:800;color:${colorPct};">
+                        ${porcentaje}%
+                    </span>
+                    <div style="font-size:11px;color:var(--color-texto-suave);margin-top:2px;">
+                        ${m.finalizaron} de ${m.largaron}
+                    </div>
+                </td>
+                <td style="text-align:center;padding:12px 16px;">
+                    <span style="font-family:'Orbitron',serif;font-size:18px;font-weight:800;color:var(--color-azul-principal);">
+                        ${m.victoriasPE > 0 ? m.victoriasPE : '—'}
+                    </span>
+                </td>
+                <td style="text-align:center;padding:12px 16px;">
+                    ${m.victoriasPE > 0
+                        ? `<div style="display:grid;grid-template-rows:repeat(2, auto);grid-auto-flow:column;gap:4px;justify-content:center;">
+                            ${Object.entries(m.victoriasPorCategoria)
+                                .map(([cat, count]) => `
+                                    <span style="background:var(--color-azul-principal);color:var(--color-texto-claro);
+                                        border-radius:5px;padding:2px 7px;font-size:10px;font-weight:700;
+                                        letter-spacing:0.5px;white-space:nowrap;">
+                                        ${count} en ${cat}
+                                    </span>`)
+                                .join('')}
+                        </div>`
+                        : '<span style="color:var(--color-texto-suave);">—</span>'}
+                </td>
+            </tr>`;
+    }).join('');
+
+    return `
+        <div style="margin-bottom:0;">
+            <div class="seccion-titulo">Marcas</div>
+            <div style="background:#f8fafc;border:1.5px solid #d7dde5;border-radius:12px;
+                overflow:hidden;box-shadow:0 4px 14px rgba(15,23,42,0.07);">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:center;padding:12px 16px;">Marca</th>
+                            <th style="text-align:center;padding:12px 16px;">Largaron</th>
+                            <th style="text-align:center;padding:12px 16px;">Finalizaron sin DNF</th>
+                            <th style="text-align:center;padding:12px 16px;">P.E Ganados</th>
+                            <th style="text-align:center;padding:12px 16px;">En</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filas}</tbody>
+                </table>
+            </div>
+        </div>`;
+}
+
+function _renderTramoConMasDNFs(tramo) {
+    if (!tramo) {
+        return `
+            <div class="tarjeta-disputado">
+                <div class="seccion-titulo">PE con más abandonos</div>
+                <div class="no-data">Sin abandonos registrados</div>
+            </div>`;
+    }
+    return `
+        <div class="tarjeta-disputado">
+            <div class="seccion-titulo">PE con más abandonos</div>
+            <div class="disputado-header">
+                <span class="disputado-pe" style="font-size:12px">PE ${tramo.pe}</span>
+                <span class="disputado-nombre">| ${tramo.nombre}</span>
+            </div>
+            <div class="disputado-dif" style="color:#dc2626;">${tramo.dnfs}</div>
+            <div class="disputado-dif-label">abandono${tramo.dnfs !== 1 ? 's' : ''} en este tramo</div>
+            ${tramo.kms ? `
+            <div class="disputado-tiempos" style="background:#fef2f2;color:#dc2626;">
+                <span>${parseFloat(tramo.kms).toFixed(2)} km</span>
+            </div>` : ''}
         </div>`;
 }
 
@@ -908,7 +1163,7 @@ async function cargarDatos() {
         const guardada = getCategoriaGuardada();
         const activa   = getCategoriaActiva();
 
-        if (!activa && guardada && categorias.includes(guardada)) {
+        if (!activa && guardada && (guardada === 'General' || categorias.includes(guardada))) {
             seleccionarCategoria(guardada);
         } else if (!activa && categorias.length > 0) {
             seleccionarCategoria(categorias[0]);

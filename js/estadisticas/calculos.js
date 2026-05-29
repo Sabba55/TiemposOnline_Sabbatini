@@ -81,6 +81,15 @@ window.UtilidadesCalculos = (function () {
         return ordenarCategorias([...cats]);
     }
 
+    function hayTiemposRegistrados(pilotos, tramos) {
+        return pilotos.some(piloto =>
+            tramos.some(t => {
+                const tiempo = piloto[`SS${t.PE}`];
+                return tiempo && tiempo.trim() !== '';
+            })
+        );
+    }
+
     // ── Posiciones acumuladas ─────────────────────────────────────────────────
 
     function calcularPosicionesAcumuladas(categoria, hastaPE, pilotos, tramos) {
@@ -550,6 +559,300 @@ window.UtilidadesCalculos = (function () {
         return { pilotosOrdenados, ganadorFinal, posicionesFinales, ultimoPE };
     }
 
+    // ── Extras ───────────────────────────────────────────────────────────────
+
+    function calcularKmsTotales(tramos) {
+        let total = 0;
+        tramos.forEach(t => {
+            const kms = parseFloat(t.KMS);
+            if (!isNaN(kms) && kms > 0) total += kms;
+        });
+        return total > 0 ? total.toFixed(2) : null;
+    }
+
+    function calcularResumenGeneral(pilotos, tramos) {
+        const participaron = pilotos.filter(p =>
+            tramos.some(t => {
+                const tiempo = p[`SS${t.PE}`];
+                return tiempo && tiempo.trim() !== '';
+            })
+        );
+
+        const totalInscriptos = pilotos.length;
+        const largaron = participaron.length;
+
+        const dnfs = participaron.filter(p =>
+            tramos.some(t => {
+                const tiempo = p[`SS${t.PE}`];
+                return tiempo && esDNF(tiempo);
+            })
+        ).length;
+
+        const sinDNF = participaron.filter(p =>
+            !tramos.some(t => {
+                const tiempo = p[`SS${t.PE}`];
+                return tiempo && esDNF(tiempo);
+            })
+        ).length;
+
+        const porcentaje = largaron > 0 ? Math.round((sinDNF / largaron) * 100) : null;
+
+        return { totalInscriptos, largaron, dnfs, sinDNF, porcentaje };
+    }
+
+    function calcularTramoMasRapidoGeneral(pilotos, tramos) {
+        let maxVelocidad = 0;
+        let resultado = null;
+
+        tramos.forEach(tramo => {
+            const pe = tramo.PE;
+            const col = `SS${pe}`;
+            const distancia = tramo.KMS ? parseFloat(tramo.KMS) : null;
+            if (!distancia || isNaN(distancia) || distancia <= 0) return;
+
+            pilotos
+                .filter(p => p[col] && !esDNF(p[col]))
+                .forEach(piloto => {
+                    const seg = tiempoASegundos(piloto[col]);
+                    if (seg >= 999999) return;
+
+                    const velocidad = distancia / (seg / 3600);
+                    if (velocidad > maxVelocidad) {
+                        maxVelocidad = velocidad;
+                        resultado = {
+                            velocidad: velocidad.toFixed(0),
+                            piloto: piloto.Nombre || piloto.NOMBRE || '',
+                            categoria: piloto.Categoria || piloto.CATEGORIA || '',
+                            pe: `PE ${pe}`,
+                            kms: tramo.KMS,
+                            tiempo: segundosATiempo(seg, 2)
+                        };
+                    }
+                });
+        });
+
+        return resultado;
+    }
+
+    function calcularTramoMasDisputadoGeneral(pilotos, tramos) {
+        let menorDif = Infinity;
+        let resultado = null;
+
+        tramos.forEach(tramo => {
+            const pe = tramo.PE;
+            const col = `SS${pe}`;
+
+            const ordenados = pilotos
+                .filter(p => p[col] && p[col].trim() !== '' && !esDNF(p[col]))
+                .map(p => ({
+                    nombre: p.Nombre || p.NOMBRE || '',
+                    seg: tiempoASegundos(p[col])
+                }))
+                .filter(p => p.seg < 999999)
+                .sort((a, b) => a.seg - b.seg);
+
+            if (ordenados.length < 2) return;
+
+            const dif = ordenados[1].seg - ordenados[0].seg;
+            if (dif < menorDif) {
+                menorDif = dif;
+                resultado = {
+                    pe,
+                    nombre: tramo.Desde && tramo.Hasta
+                        ? `${tramo.Desde} - ${tramo.Hasta}`
+                        : `PE ${pe}`,
+                    difSegundos: dif,
+                    tiempo1: segundosATiempo(ordenados[0].seg, 3),
+                    tiempo2: segundosATiempo(ordenados[1].seg, 3),
+                    piloto1: ordenados[0].nombre,
+                    piloto2: ordenados[1].nombre
+                };
+            }
+        });
+
+        return resultado;
+    }
+
+    function calcularPilotoMayoresSanciones(pilotos, tramos) {
+        const candidatos = pilotos
+            .filter(p => tramos.some(t => {
+                const tiempo = p[`SS${t.PE}`];
+                return tiempo && tiempo.trim() !== '';
+            }))
+            .map(p => {
+                const pen = tiempoASegundos(p.PENALIZACION || p.Penalizacion || '');
+                const penSeg = pen < 999999 ? pen : 0;
+                return {
+                    nombre: p.Nombre || p.NOMBRE || '',
+                    categoria: p.Categoria || p.CATEGORIA || '',
+                    penSeg,
+                    penDisplay: penSeg > 0 ? segundosATiempo(penSeg, 2) : null
+                };
+            })
+            .filter(p => p.penSeg > 0)
+            .sort((a, b) => b.penSeg - a.penSeg);
+
+        return candidatos.length > 0 ? candidatos[0] : null;
+    }
+
+    function calcularPilotoMasConsistenteGeneral(pilotos, tramos) {
+        const gruposPorNombre = {};
+        tramos.forEach(tramo => {
+            const desde = (tramo.Desde || '').trim();
+            const hasta  = (tramo.Hasta  || '').trim();
+            if (!desde || !hasta) return;
+            const clave = `${desde} - ${hasta}`;
+            if (!gruposPorNombre[clave]) gruposPorNombre[clave] = [];
+            gruposPorNombre[clave].push(tramo.PE);
+        });
+
+        const gruposRepetidos = Object.entries(gruposPorNombre)
+            .filter(([, pes]) => pes.length >= 2);
+
+        if (gruposRepetidos.length === 0) return null;
+
+        const participaron = pilotos.filter(p =>
+            tramos.some(t => {
+                const tiempo = p[`SS${t.PE}`];
+                return tiempo && tiempo.trim() !== '';
+            })
+        );
+
+        const candidatos = participaron
+            .map(piloto => {
+                const cvsPorGrupo = [];
+
+                gruposRepetidos.forEach(([, pes]) => {
+                    const tiemposDelGrupo = pes
+                        .map(pe => {
+                            const tiempo = piloto[`SS${pe}`];
+                            if (!tiempo || tiempo.trim() === '' || esDNF(tiempo)) return null;
+                            const seg = tiempoASegundos(tiempo);
+                            return seg < 999999 ? seg : null;
+                        })
+                        .filter(Boolean);
+
+                    if (tiemposDelGrupo.length < 2) return;
+
+                    const promedio = tiemposDelGrupo.reduce((a, b) => a + b, 0) / tiemposDelGrupo.length;
+                    const varianza = tiemposDelGrupo.reduce((s, t) => s + Math.pow(t - promedio, 2), 0) / tiemposDelGrupo.length;
+                    const cv = promedio > 0 ? (Math.sqrt(varianza) / promedio) * 100 : 0;
+                    cvsPorGrupo.push(cv);
+                });
+
+                if (cvsPorGrupo.length === 0) return null;
+
+                return {
+                    nombre: piloto.Nombre || piloto.NOMBRE || '',
+                    categoria: piloto.Categoria || piloto.CATEGORIA || '',
+                    cv: cvsPorGrupo.reduce((a, b) => a + b, 0) / cvsPorGrupo.length
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.cv - b.cv);
+
+        if (candidatos.length === 0) return null;
+
+        return {
+            nombre: candidatos[0].nombre,
+            categoria: candidatos[0].categoria,
+            desvio: candidatos[0].cv.toFixed(2)
+        };
+    }
+
+    function calcularTablasMarcas(pilotos, tramos) {
+        const categorias = [...new Set(pilotos.map(p => p.Categoria || p.CATEGORIA).filter(Boolean))];
+        const marcas = {};
+
+        const participaron = pilotos.filter(p =>
+            tramos.some(t => {
+                const tiempo = p[`SS${t.PE}`];
+                return tiempo && tiempo.trim() !== '';
+            })
+        );
+
+        participaron.forEach(piloto => {
+            const vehiculo = piloto.Vehiculo || piloto.VEHICULO || piloto.vehiculo || '';
+            const marca = vehiculo.trim().split(' ')[0];
+            if (!marca) return;
+
+            if (!marcas[marca]) {
+                marcas[marca] = {
+                    marca,
+                    largaron: 0,
+                    finalizaron: 0,
+                    victoriasPE: 0,
+                    victoriasPorCategoria: {}
+                };
+            }
+            marcas[marca].largaron++;
+
+            const finalizo = tramos.every(t => {
+                const tiempo = piloto[`SS${t.PE}`];
+                return tiempo && tiempo.trim() !== '' && !esDNF(tiempo);
+            });
+            if (finalizo) marcas[marca].finalizaron++;
+        });
+
+        categorias.forEach(categoria => {
+            tramos.forEach(tramo => {
+                const pe = tramo.PE;
+                const col = `SS${pe}`;
+
+                const ordenados = participaron
+                    .filter(p => (p.Categoria || p.CATEGORIA) === categoria)
+                    .filter(p => p[col] && p[col].trim() !== '' && !esDNF(p[col]))
+                    .map(p => ({
+                        vehiculo: p.Vehiculo || p.VEHICULO || p.vehiculo || '',
+                        seg: tiempoASegundos(p[col])
+                    }))
+                    .filter(p => p.seg < 999999)
+                    .sort((a, b) => a.seg - b.seg);
+
+                if (ordenados.length === 0) return;
+
+                const marcaGanadora = ordenados[0].vehiculo.trim().split(' ')[0];
+                if (!marcaGanadora || !marcas[marcaGanadora]) return;
+                marcas[marcaGanadora].victoriasPE++;
+
+                const vc = marcas[marcaGanadora].victoriasPorCategoria;
+                vc[categoria] = (vc[categoria] || 0) + 1;
+            });
+        });
+
+        return Object.values(marcas)
+            .sort((a, b) => b.victoriasPE - a.victoriasPE || b.largaron - a.largaron);
+    }
+
+    function calcularTramoConMasDNFs(pilotos, tramos) {
+        let maxDNFs = 0;
+        let resultado = null;
+
+        tramos.forEach(tramo => {
+            const pe = tramo.PE;
+            const col = `SS${pe}`;
+
+            const dnfs = pilotos.filter(p => {
+                const tiempo = p[col];
+                return tiempo && esDNF(tiempo);
+            }).length;
+
+            if (dnfs > maxDNFs) {
+                maxDNFs = dnfs;
+                resultado = {
+                    pe,
+                    nombre: tramo.Desde && tramo.Hasta
+                        ? `${tramo.Desde} - ${tramo.Hasta}`
+                        : `PE ${pe}`,
+                    dnfs,
+                    kms: tramo.KMS || null
+                };
+            }
+        });
+
+        return resultado?.dnfs > 0 ? resultado : null;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
 
     return {
@@ -570,6 +873,15 @@ window.UtilidadesCalculos = (function () {
         calcularPilotoMasPosicionesPerdidas,
         calcularEvolucionTop5,
         calcularDatosHeatmap,
+        hayTiemposRegistrados,
+        calcularKmsTotales,
+        calcularResumenGeneral,
+        calcularTramoMasRapidoGeneral,
+        calcularTramoMasDisputadoGeneral,
+        calcularPilotoMayoresSanciones,
+        calcularPilotoMasConsistenteGeneral,
+        calcularTablasMarcas,
+        calcularTramoConMasDNFs,
         // helpers reutilizables
         pilotosDeCat,
         ultimoPEConDatos,
