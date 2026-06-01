@@ -1,7 +1,7 @@
 const PILOTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1122371230&single=true&output=csv';
 const TRAMOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=0&single=true&output=csv';
 const { analizarCSV } = window.UtilidadesCSV;
-const { esDNF, tiempoASegundos, segundosATiempo } = window.UtilidadesTiempo;
+const { esDNF, tiempoASegundos, segundosATiempo, obtenerTiempoEtapa } = window.UtilidadesTiempo;
 const { obtenerPeorTiempo, calcularTiempoDNF } = window.UtilidadesDNF;
 
 let pilotosData = [];
@@ -231,7 +231,6 @@ function renderizarResultados() {
         return;
     }
 
-    const ssColumn = `SS${peNumber}`;
     const tramoActual = tramosData.find(t => t.PE === peNumber);
     const distanciaTramo = tramoActual ? tramoActual.KMS : null;
 
@@ -241,9 +240,9 @@ function renderizarResultados() {
     const categoriasColor = crearMapaColoresCategorias(categorias);
 
     const pilotosPE = pilotosData
-        .filter(p => p[ssColumn])
+        .filter(p => obtenerTiempoEtapa(p, peNumber))
         .map(p => {
-            const valorTiempo = p[ssColumn];
+            const valorTiempo = obtenerTiempoEtapa(p, peNumber);
             const tieneDNF = esDNF(valorTiempo);
             const categoria = p.Categoria || p.CATEGORIA || '';
 
@@ -321,8 +320,7 @@ function renderizarResultados() {
             let tuvoDNF = false;
 
             for (let i = 1; i <= peNumero; i++) {
-                const columnaSS = `SS${i}`;
-                const tiempo = p[columnaSS];
+                const tiempo = obtenerTiempoEtapa(p, i);
 
                 if (!tiempo || tiempo === '') {
                     return null;
@@ -330,9 +328,9 @@ function renderizarResultados() {
 
                 if (esDNF(tiempo)) {
                     const pilotosEsteTramo = pilotosData
-                        .filter(piloto => piloto[columnaSS] && (piloto.Categoria || piloto.CATEGORIA) === (p.Categoria || p.CATEGORIA))
+                        .filter(piloto => obtenerTiempoEtapa(piloto, i) && (piloto.Categoria || piloto.CATEGORIA) === (p.Categoria || p.CATEGORIA))
                         .map(piloto => {
-                            const valorTiempo = piloto[columnaSS];
+                            const valorTiempo = obtenerTiempoEtapa(piloto, i);
                             return {
                                 tiempoSegundos: tiempoASegundos(valorTiempo),
                                 tieneDNF: esDNF(valorTiempo)

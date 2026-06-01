@@ -56,10 +56,44 @@ window.UtilidadesTiempo = (function () {
         return `${minutos}:${String(segs).padStart(ancho, '0')}`;
     }
 
+    function obtenerTiempoEtapa(registro, numeroEtapa) {
+        if (!registro || numeroEtapa === null || numeroEtapa === undefined || numeroEtapa === '') {
+            return '';
+        }
+
+        const clavePE = `PE${numeroEtapa}`;
+        const claveSS = `SS${numeroEtapa}`;
+
+        return registro[clavePE] || registro[claveSS] || '';
+    }
+
+    function obtenerClavesTiempo(registro) {
+        if (!registro) return [];
+
+        const etapas = new Map();
+
+        Object.keys(registro)
+            .filter(clave => /^(PE|SS)\d+$/.test(clave))
+            .forEach(clave => {
+                const numero = parseInt(clave.replace(/^(PE|SS)/, ''), 10);
+                const existente = etapas.get(numero);
+
+                if (!existente || (existente.startsWith('SS') && clave.startsWith('PE'))) {
+                    etapas.set(numero, clave);
+                }
+            });
+
+        return [...etapas.entries()]
+            .sort((a, b) => a[0] - b[0])
+            .map(([, clave]) => clave);
+    }
+
     return {
         normalizarFormatoTiempo,
         esDNF,
         tiempoASegundos,
-        segundosATiempo
+        segundosATiempo,
+        obtenerTiempoEtapa,
+        obtenerClavesTiempo
     };
 })();

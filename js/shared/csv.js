@@ -1,4 +1,19 @@
 window.UtilidadesCSV = (function () {
+    function normalizarColumnasEtapa(fila) {
+        Object.keys(fila)
+            .filter(clave => /^(PE|SS)\d+$/.test(clave))
+            .forEach(clave => {
+                const numero = clave.replace(/^(PE|SS)/, '');
+                const alias = clave.startsWith('PE') ? `SS${numero}` : `PE${numero}`;
+
+                if (fila[clave] !== '' && fila[alias] === undefined) {
+                    fila[alias] = fila[clave];
+                }
+            });
+
+        return fila;
+    }
+
     function analizarCSV(csv, opciones = {}) {
         const {
             transformarEncabezados = (encabezado) => encabezado.trim(),
@@ -20,6 +35,8 @@ window.UtilidadesCSV = (function () {
             encabezados.forEach((encabezado, indice) => {
                 fila[encabezado] = valores[indice] || '';
             });
+
+            normalizarColumnasEtapa(fila);
 
             if (filtrarFila && !filtrarFila(fila)) continue;
 

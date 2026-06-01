@@ -1,5 +1,6 @@
 const ORDENLARGADA_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1217848665&single=true&output=csv';
 const { analizarCSV } = window.UtilidadesCSV;
+const { obtenerClavesTiempo, obtenerTiempoEtapa } = window.UtilidadesTiempo;
 
 let ordenLargadaData = [];
 let intervaloContador = null;
@@ -85,15 +86,14 @@ async function cargarDatos() {
     }
 }
 
-function obtenerColumnasSS() {
+function obtenerColumnasTiempo() {
     if (ordenLargadaData.length === 0) return [];
 
     const primeraFila = ordenLargadaData[0];
-    return Object.keys(primeraFila)
-        .filter(key => key.match(/^SS\d+$/))
+    return obtenerClavesTiempo(primeraFila)
         .sort((a, b) => {
-            const numeroA = parseInt(a.replace('SS', ''), 10);
-            const numeroB = parseInt(b.replace('SS', ''), 10);
+            const numeroA = parseInt(a.replace(/^(PE|SS)/, ''), 10);
+            const numeroB = parseInt(b.replace(/^(PE|SS)/, ''), 10);
             return numeroA - numeroB;
         });
 }
@@ -109,11 +109,11 @@ function convertirHorarioAMinutos(horario) {
     return horas * 60 + minutos;
 }
 
-function obtenerHorarioMasTemprano(piloto, columnasSS) {
+function obtenerHorarioMasTemprano(piloto, columnasTiempo) {
     let horarioMinimo = Infinity;
 
-    columnasSS.forEach(ss => {
-        const horario = piloto[ss];
+    columnasTiempo.forEach(columna => {
+        const horario = obtenerTiempoEtapa(piloto, columna.replace(/^(PE|SS)/, ''));
         const minutos = convertirHorarioAMinutos(horario);
         if (minutos < horarioMinimo) {
             horarioMinimo = minutos;
@@ -144,13 +144,13 @@ function encontrarProximasLargadas() {
 
     const ahora = new Date();
     const tiempoActualEnMinutos = ahora.getHours() * 60 + ahora.getMinutes();
-    const columnasSS = obtenerColumnasSS();
+    const columnasTiempo = obtenerColumnasTiempo();
     let menorDiferencia = Infinity;
     const candidatos = [];
 
     ordenLargadaData.forEach(piloto => {
-        columnasSS.forEach(ss => {
-            const tiempoLargada = convertirHorarioAMinutos(piloto[ss]);
+        columnasTiempo.forEach(columna => {
+            const tiempoLargada = convertirHorarioAMinutos(obtenerTiempoEtapa(piloto, columna.replace(/^(PE|SS)/, '')));
             if (tiempoLargada !== Infinity) {
                 const diferencia = tiempoLargada - tiempoActualEnMinutos;
                 if (diferencia >= 0 && diferencia < menorDiferencia) {
@@ -166,16 +166,16 @@ function encontrarProximasLargadas() {
         const nombre = piloto.Nombre || piloto.NOMBRE || '';
         const categoria = piloto.Categoria || piloto.CATEGORIA || '';
 
-        columnasSS.forEach(ss => {
-            const tiempoLargada = convertirHorarioAMinutos(piloto[ss]);
+        columnasTiempo.forEach(columna => {
+            const tiempoLargada = convertirHorarioAMinutos(obtenerTiempoEtapa(piloto, columna.replace(/^(PE|SS)/, '')));
             if (tiempoLargada !== Infinity) {
                 const diferencia = tiempoLargada - tiempoActualEnMinutos;
                 if (diferencia === menorDiferencia) {
                     candidatos.push({
                         nombre,
                         categoria,
-                        horario: piloto[ss],
-                        ss,
+                        horario: obtenerTiempoEtapa(piloto, columna.replace(/^(PE|SS)/, '')),
+                        pe: columna.replace(/^(PE|SS)/, ''),
                         minutosRestantes: Math.floor(diferencia)
                     });
                 }
@@ -228,7 +228,7 @@ function actualizarContadorProximaLargada() {
             </div>
             <div class="info-item">
                 <span class="label">PE:</span>
-                <span class="valor">${piloto.ss.replace('SS', '')}</span>
+                <span class="valor">${piloto.pe}</span>
             </div>
             <div class="info-item">
                 <span class="label">Horario:</span>
@@ -265,13 +265,13 @@ function actualizarTablaSiCambioElMinuto() {
     }
 }
 
-function construirFilaPiloto(piloto, index, columnasSS, tiempoActualEnMinutos, fijados, totalFijados, esSeccionFijados) {
+function construirFilaPiloto(piloto, index, columnasTiempo, tiempoActualEnMinutos, fijados, totalFijados, esSeccionFijados) {
     const nombre = piloto.Nombre || piloto.NOMBRE || '';
     const categoria = piloto.Categoria || piloto.CATEGORIA || '';
     const estaFijado = fijados.includes(nombre);
 
-    const estaLargando = columnasSS.some(ss => {
-        const tiempoLargada = convertirHorarioAMinutos(piloto[ss]);
+    const estaLargando = columnasTiempo.some(columna => {
+        const tiempoLargada = convertirHorarioAMinutos(obtenerTiempoEtapa(piloto, columna.replace(/^(PE|SS)/, '')));
         return tiempoLargada !== Infinity && tiempoLargada === tiempoActualEnMinutos;
     });
 
@@ -304,8 +304,9 @@ function construirFilaPiloto(piloto, index, columnasSS, tiempoActualEnMinutos, f
             <td class="${claseLargando}"><strong>${categoria}</strong></td>
     `;
 
-    columnasSS.forEach(ss => {
-        const horario = piloto[ss] || '-';
+    columnasTiempo.forEach(columna => {
+        const numero = columna.replace(/^(PE|SS)/, '');
+        const horario = obtenerTiempoEtapa(piloto, numero) || '-';
         const tiempoLargada = convertirHorarioAMinutos(horario);
         const estaLargandoEste = tiempoLargada !== Infinity && tiempoLargada === tiempoActualEnMinutos;
         html += `<td class="pe-horario-cell${estaLargandoEste ? ' celda-largando' : ''}">${horario}</td>`;
@@ -315,7 +316,7 @@ function construirFilaPiloto(piloto, index, columnasSS, tiempoActualEnMinutos, f
     return html;
 }
 
-function renderizarSeccionFijados(datosOrdenados, columnasSS, tiempoActualEnMinutos, fijados) {
+function renderizarSeccionFijados(datosOrdenados, columnasTiempo, tiempoActualEnMinutos, fijados) {
     const container = document.getElementById('fijadosContainer');
     if (!container) return;
 
@@ -352,8 +353,8 @@ function renderizarSeccionFijados(datosOrdenados, columnasSS, tiempoActualEnMinu
                         <th>Categoría</th>
     `;
 
-    columnasSS.forEach(ss => {
-        html += `<th>PE ${ss.replace('SS', '')}</th>`;
+    columnasTiempo.forEach(columna => {
+        html += `<th>PE ${columna.replace(/^(PE|SS)/, '')}</th>`;
     });
 
     html += `
@@ -365,7 +366,7 @@ function renderizarSeccionFijados(datosOrdenados, columnasSS, tiempoActualEnMinu
     pilotosFijados.forEach((piloto, index) => {
         // Para la sección de fijados mostramos la posición original en la tabla completa
         const posicionOriginal = datosOrdenados.indexOf(piloto);
-        html += construirFilaPiloto(piloto, posicionOriginal, columnasSS, tiempoActualEnMinutos, fijados, fijados.length, true);
+        html += construirFilaPiloto(piloto, posicionOriginal, columnasTiempo, tiempoActualEnMinutos, fijados, fijados.length, true);
     });
 
     html += `
@@ -384,10 +385,10 @@ function renderizarOrdenLargada() {
         return;
     }
 
-    const columnasSS = obtenerColumnasSS();
+    const columnasTiempo = obtenerColumnasTiempo();
     const datosOrdenados = [...ordenLargadaData].sort((a, b) => {
-        const tiempoA = obtenerHorarioMasTemprano(a, columnasSS);
-        const tiempoB = obtenerHorarioMasTemprano(b, columnasSS);
+        const tiempoA = obtenerHorarioMasTemprano(a, columnasTiempo);
+        const tiempoB = obtenerHorarioMasTemprano(b, columnasTiempo);
         return tiempoA - tiempoB;
     });
 
@@ -398,7 +399,7 @@ function renderizarOrdenLargada() {
     const fijados = obtenerPilotosFijados();
 
     // Renderizar sección de fijados (arriba)
-    renderizarSeccionFijados(datosOrdenados, columnasSS, tiempoActualEnMinutos, fijados);
+    renderizarSeccionFijados(datosOrdenados, columnasTiempo, tiempoActualEnMinutos, fijados);
 
     // Renderizar tabla principal
     let html = `
@@ -413,8 +414,8 @@ function renderizarOrdenLargada() {
                             <th>Categoría</th>
     `;
 
-    columnasSS.forEach(ss => {
-        const numero = ss.replace('SS', '');
+    columnasTiempo.forEach(columna => {
+        const numero = columna.replace(/^(PE|SS)/, '');
         html += `<th>PE ${numero}</th>`;
     });
 
@@ -425,7 +426,7 @@ function renderizarOrdenLargada() {
     `;
 
     datosOrdenados.forEach((piloto, index) => {
-        html += construirFilaPiloto(piloto, index, columnasSS, tiempoActualEnMinutos, fijados, fijados.length, false);
+        html += construirFilaPiloto(piloto, index, columnasTiempo, tiempoActualEnMinutos, fijados, fijados.length, false);
     });
 
     html += `

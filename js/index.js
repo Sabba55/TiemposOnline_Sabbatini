@@ -3,7 +3,7 @@ const PILOTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5t
 const RALLY_NAME_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1067104904&single=true&output=csv';
 const INSCRIPTOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1217848665&single=true&output=csv';
 const { analizarCSV } = window.UtilidadesCSV;
-const { esDNF, tiempoASegundos, segundosATiempo: formatearSegundos } = window.UtilidadesTiempo;
+const { esDNF, tiempoASegundos, segundosATiempo: formatearSegundos, obtenerTiempoEtapa, obtenerClavesTiempo } = window.UtilidadesTiempo;
 const { obtenerPeorTiempo, calcularTiempoDNF } = window.UtilidadesDNF;
 
 let tramosData = [];
@@ -58,12 +58,11 @@ function numeroARomano(num) {
 }
 
 function obtenerGanadorPE(peNumber) {
-    const ssColumn = `SS${peNumber}`;
     let mejorPiloto = null;
     let mejorTiempo = 999999;
 
     pilotosData.forEach(piloto => {
-        const tiempo = piloto[ssColumn];
+        const tiempo = obtenerTiempoEtapa(piloto, peNumber);
         if (tiempo && tiempo !== '') {
             const segundos = tiempoASegundos(tiempo);
             if (segundos < mejorTiempo) {
@@ -92,12 +91,11 @@ function convertirHorarioAMinutos(horario) {
 }
 
 function obtenerHorarioMasTemplanoPE(peNumber) {
-    const ssColumn = `SS${peNumber}`;
     let minTiempo = Infinity;
     let horarioMasTemplano = '';
     
     inscriptosData.forEach(inscripto => {
-        const horario = inscripto[ssColumn];
+        const horario = obtenerTiempoEtapa(inscripto, peNumber);
         if (horario && horario !== '-' && horario !== '') {
             const tiempo = convertirHorarioAMinutos(horario);
             if (tiempo < minTiempo) {
@@ -127,16 +125,16 @@ function validarConsistenciaDatos() {
     }
     
     const primeraFila = pilotosData[0];
-    const columnasSS = Object.keys(primeraFila).filter(key => key.match(/^SS\d+$/));
-    const numeroSS = columnasSS.length;
+    const columnasTiempo = obtenerClavesTiempo(primeraFila);
+    const numeroSS = columnasTiempo.length;
     
     if (numeroPEs !== numeroSS) {
         return {
             valido: false,
             mensaje: `⚠️ INCONSISTENCIA DE DATOS: ⚠️\n\n` +
                     `• PE en tabla de Tramos: ${numeroPEs}\n` +
-                    `• Columnas SS en tabla de Pilotos: ${numeroSS}\n\n` +
-                    `El número de PE debe coincidir con el número de columnas SS en la tabla de pilotos.\n` +
+                    `• Columnas de tiempos en tabla de Pilotos: ${numeroSS}\n\n` +
+                    `El número de PE debe coincidir con el número de columnas de tiempos en la tabla de pilotos.\n` +
                     `Por favor, no seas boludo y corregi las hojas de cálculo.`
         };
     }
@@ -281,8 +279,7 @@ function verificarPEsCompletas() {
         
         const algunoPilotoCompleto = pilotosCategoria.some(piloto => {
             for (let i = 1; i <= totalPEs; i++) {
-                const columnaSS = `SS${i}`;
-                const tiempo = piloto[columnaSS];
+                const tiempo = obtenerTiempoEtapa(piloto, i);
                 if (!tiempo || tiempo === '') {
                     return false;
                 }
@@ -306,8 +303,7 @@ function calcularClasificacionGeneral(totalPEs) {
             let tieneDatos = false;
             
             for (let i = 1; i <= totalPEs; i++) {
-                const columnaSS = `SS${i}`;
-                const tiempo = piloto[columnaSS];
+                const tiempo = obtenerTiempoEtapa(piloto, i);
                 
                 if (!tiempo || tiempo === '') {
                     return null;
@@ -318,10 +314,10 @@ function calcularClasificacionGeneral(totalPEs) {
                 if (esDNF(tiempo)) {
                     // Peor tiempo filtrado por la misma categoría del piloto
                     const pilotosEsteTramo = pilotosData
-                        .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[columnaSS])
+                        .filter(p => (p.Categoria || p.CATEGORIA) === categoria && obtenerTiempoEtapa(p, i))
                         .map(p => ({
-                            tiempoSegundos: tiempoASegundos(p[columnaSS]),
-                            tieneDNF: esDNF(p[columnaSS])
+                            tiempoSegundos: tiempoASegundos(obtenerTiempoEtapa(p, i)),
+                            tieneDNF: esDNF(obtenerTiempoEtapa(p, i))
                         }))
                         .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
                     
@@ -367,8 +363,7 @@ function calcularGanadorCategoria(categoria, totalPEs, clasificacionGeneral) {
             let tuvoDNF = false;
             
             for (let i = 1; i <= totalPEs; i++) {
-                const columnaSS = `SS${i}`;
-                const tiempo = piloto[columnaSS];
+                const tiempo = obtenerTiempoEtapa(piloto, i);
                 
                 if (!tiempo || tiempo === '') {
                     return null;
@@ -376,10 +371,10 @@ function calcularGanadorCategoria(categoria, totalPEs, clasificacionGeneral) {
                 
                 if (esDNF(tiempo)) {
                     const pilotosEsteTramo = pilotosData
-                        .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[columnaSS])
+                        .filter(p => (p.Categoria || p.CATEGORIA) === categoria && obtenerTiempoEtapa(p, i))
                         .map(p => ({
-                            tiempoSegundos: tiempoASegundos(p[columnaSS]),
-                            tieneDNF: esDNF(p[columnaSS])
+                            tiempoSegundos: tiempoASegundos(obtenerTiempoEtapa(p, i)),
+                            tieneDNF: esDNF(obtenerTiempoEtapa(p, i))
                         }))
                         .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
                     

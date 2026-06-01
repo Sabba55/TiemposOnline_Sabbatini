@@ -45,7 +45,7 @@
   const ANCHO_LOGO = 35;
 
   // ─── HELPERS DE TIEMPO ───────────────────────────────────────────────────────
-  const { tiempoASegundos, esDNF } = window.UtilidadesTiempo;
+  const { tiempoASegundos, esDNF, obtenerTiempoEtapa } = window.UtilidadesTiempo;
   const { obtenerPeorTiempo, calcularTiempoDNF } = window.UtilidadesDNF;
 
   function segundosATiempoConDecimales(segundos, decimales) {
@@ -93,7 +93,7 @@
 
     const peoresPorTramoYCategoria = {};
     for (let i = 1; i <= totalPEs; i++) {
-      const col  = `SS${i}`;
+      const col  = `PE${i}`;
       const cats = [...new Set(pilotos.map(p => p.Categoria || p.CATEGORIA))].filter(Boolean);
       cats.forEach(cat => {
         const tiemposTramo = pilotos
@@ -121,7 +121,7 @@
           let tuvoDNF       = false;
 
           for (let i = 1; i <= totalPEs; i++) {
-            const col    = `SS${i}`;
+            const col    = `PE${i}`;
             const tiempo = p[col];
 
             if (!tiempo || tiempo === '') return null;

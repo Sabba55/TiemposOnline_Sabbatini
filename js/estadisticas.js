@@ -919,7 +919,7 @@ function renderizarHeatmapRendimiento(categoria) {
 
         const celdas = Array.from({ length: ultimoPE }, (_, i) => {
             const pe  = i + 1;
-            const col = `SS${pe}`;
+            const col = `PE${pe}`;
 
             if (esGanadorFinal) {
                 const t = piloto[col];

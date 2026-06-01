@@ -1,7 +1,7 @@
 const URL_PILOTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=1122371230&single=true&output=csv';
 const URL_TRAMOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeo0wYsc5ti8yBhljZLKklf7VXplQSmbAQS3GtdGokmvwQcj7X7QVGOX9h3jTh045B5O8vr6jb2G7U/pub?gid=0&single=true&output=csv';
 const { analizarCSV: analizarCSVBase } = window.UtilidadesCSV;
-const { esDNF, tiempoASegundos: convertirASegundos, segundosATiempo: convertirATiempo } = window.UtilidadesTiempo;
+const { esDNF, tiempoASegundos: convertirASegundos, segundosATiempo: convertirATiempo, obtenerTiempoEtapa } = window.UtilidadesTiempo;
 const { obtenerPeorTiempo, calcularTiempoDNF } = window.UtilidadesDNF;
 const { obtenerRutaLogoMarca } = window.UtilidadesIconos;
 
@@ -113,8 +113,7 @@ function calcularTotalAcumulado(piloto, hastaPE) {
     let totalSegundos = 0;
 
     for (let i = 1; i <= hastaPE; i++) {
-        const columnaSS = `SS${i}`;
-        const tiempo = piloto[columnaSS];
+        const tiempo = obtenerTiempoEtapa(piloto, i);
 
         if (!tiempo || tiempo === '') {
             return 999999;
@@ -141,8 +140,7 @@ function calcularPosicionesAnterior(categoria, numeroPEInt) {
             let totalSegundos = 0;
 
             for (let i = 1; i < numeroPEInt; i++) {
-                const columnaSS = `SS${i}`;
-                const tiempo = p[columnaSS];
+                const tiempo = obtenerTiempoEtapa(p, i);
 
                 if (!tiempo || tiempo === '') {
                     return null;
@@ -150,9 +148,9 @@ function calcularPosicionesAnterior(categoria, numeroPEInt) {
 
                 if (esDNF(tiempo)) {
                     const pilotosEsteTramo = datosPilotos
-                        .filter(piloto => (piloto.Categoria || piloto.CATEGORIA) === categoria && piloto[columnaSS])
+                        .filter(piloto => (piloto.Categoria || piloto.CATEGORIA) === categoria && obtenerTiempoEtapa(piloto, i))
                         .map(piloto => {
-                            const valorTiempo = piloto[columnaSS];
+                            const valorTiempo = obtenerTiempoEtapa(piloto, i);
                             return {
                                 tiempoSegundos: tiempoASegundos(valorTiempo),
                                 tieneDNF: esDNF(valorTiempo)
@@ -270,7 +268,7 @@ function renderizarResultados() {
         return;
     }
 
-    const columnaSSActual = `SS${numeroPE}`;
+    const columnaSSActual = `PE${numeroPE}`;
     const tramoActual = datosTramos.find(t => t.PE === numeroPE);
     const distanciaTramo = tramoActual ? tramoActual.KMS : null;
 
@@ -283,10 +281,10 @@ function renderizarResultados() {
 
     categorias.forEach(categoria => {
         const pilotosCategoria = datosPilotos
-            .filter(p => (p.Categoria || p.CATEGORIA) === categoria && p[columnaSSActual])
+            .filter(p => (p.Categoria || p.CATEGORIA) === categoria && obtenerTiempoEtapa(p, numeroPE))
             .map(p => {
                 const totalAcumulado = calcularTotalAcumulado(p, numeroPEInt);
-                const valorTiempo = p[columnaSSActual];
+                const valorTiempo = obtenerTiempoEtapa(p, numeroPE);
                 const tieneDNF = esDNF(valorTiempo);
 
                 return {
@@ -309,8 +307,7 @@ function renderizarResultados() {
                 let tuvoDNF = false;
 
                 for (let i = 1; i <= numeroPEInt; i++) {
-                    const columnaSS = `SS${i}`;
-                    const tiempo = p[columnaSS];
+                    const tiempo = obtenerTiempoEtapa(p, i);
 
                     if (!tiempo || tiempo === '') {
                         return null;
@@ -318,9 +315,9 @@ function renderizarResultados() {
 
                     if (esDNF(tiempo)) {
                         const pilotosEsteTramo = datosPilotos
-                            .filter(piloto => (piloto.Categoria || piloto.CATEGORIA) === categoria && piloto[columnaSS])
+                            .filter(piloto => (piloto.Categoria || piloto.CATEGORIA) === categoria && obtenerTiempoEtapa(piloto, i))
                             .map(piloto => {
-                                const valorTiempo = piloto[columnaSS];
+                                const valorTiempo = obtenerTiempoEtapa(piloto, i);
                                 return {
                                     tiempoSegundos: tiempoASegundos(valorTiempo),
                                     tieneDNF: esDNF(valorTiempo)
